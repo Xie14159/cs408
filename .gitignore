@@ -70,6 +70,6 @@ Caddyfile
 
 # ---- 本地备份与临时文件 ----
 .next.bak_*/
-*.bak_*/
+*.bak_*
 _cookie_test.txt
 
