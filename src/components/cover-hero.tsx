@@ -50,8 +50,8 @@ const MARQUEE_ITEMS = [
 ]
 
 function daysToExam(): number {
-  // 2027 届考研初试预计 2026-12-26（历年惯例：12 月倒数第二个周末）
-  const exam = new Date('2026-12-26T09:00:00+08:00')
+  // 2027 届考研初试：2026-12-19（周六）08:30
+  const exam = new Date('2026-12-19T08:30:00+08:00')
   const diff = exam.getTime() - Date.now()
   return Math.max(0, Math.ceil(diff / 86400000))
 }
