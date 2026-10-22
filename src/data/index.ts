@@ -34,8 +34,6 @@ import { y2024c } from './questions/y2024-c'
 import { y2024a } from './questions/y2024-a'
 import { y2025c } from './questions/y2025-c'
 import { y2025a } from './questions/y2025-a'
-import { y2026c } from './questions/y2026-c'
-import { y2026a } from './questions/y2026-a'
 
 import { curatedDs } from './curated/curated-ds'
 import { curatedCo } from './curated/curated-co'
@@ -64,7 +62,7 @@ import { mock10c } from './mocks/mock10-c'
 import { mock10a } from './mocks/mock10-a'
 
 /**
- * 全部真题整卷（2009–2026 届共 18 套，每套 47 题 = 40 单选 + 7 综合，150 分）。
+ * 全部真题整卷（2009–2025 届共 17 套，每套 47 题 = 40 单选 + 7 综合，150 分）。
  * 按「年份 → 卷面题号」排序，保持真实试卷顺序；选项顺序与答案均为原卷保真，不做再平衡。
  */
 export const QUESTIONS: Question[] = [
@@ -85,7 +83,6 @@ export const QUESTIONS: Question[] = [
   ...y2023c, ...y2023a,
   ...y2024c, ...y2024a,
   ...y2025c, ...y2025a,
-  ...y2026c, ...y2026a,
 ].sort((a, b) => (a.year !== b.year ? a.year - b.year : a.number - b.number))
 
 export const QUESTION_MAP: Map<string, Question> = new Map(
