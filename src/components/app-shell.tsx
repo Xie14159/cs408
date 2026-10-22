@@ -13,6 +13,7 @@ import {
 import { ReadingProgress } from '@/components/reading-progress'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { AuthMenu } from '@/components/auth-menu'
+import { ShutdownButton } from '@/components/shutdown-button'
 import { useSyncBridge } from '@/lib/use-auth'
 import { HomeView } from '@/components/views/home-view'
 import { QuestionsView } from '@/components/views/questions-view'
@@ -136,7 +137,7 @@ export function AppShell() {
           <div className="ml-auto flex items-center gap-2">
             <AuthMenu />
             <a
-              href="https://github.com/43aquarius/cs408"
+              href="https://github.com/Xie14159/cs408"
               target="_blank"
               rel="noreferrer"
               aria-label="GitHub 仓库"
@@ -144,6 +145,7 @@ export function AppShell() {
             >
               <Github className="h-4 w-4" />
             </a>
+            <ShutdownButton />
             <ThemeToggle />
 
             {/* 移动端菜单 */}
@@ -204,7 +206,7 @@ export function AppShell() {
               <span className="text-primary">$</span> echo "考研加油" && ./ship --offer
             </p>
             <p className="font-mono text-[11px] text-muted-foreground/70">
-              {ALL_QUESTIONS.length} 道题 · 真题 2009–2026 · 登录后记录云端同步
+              {ALL_QUESTIONS.length} 道题 · 真题 2009–2025 · 登录后记录云端同步
             </p>
           </div>
           <p className="text-[11px] leading-relaxed text-muted-foreground/60">
