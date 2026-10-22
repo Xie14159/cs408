@@ -37,7 +37,7 @@ export async function createSession(userId: string): Promise<string> {
   jar.set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: 'lax',
-    secure: false,
+    secure: process.env.NODE_ENV === 'production' && process.env.HTTPS === 'true',
     path: '/',
     maxAge: SESSION_DAYS * 24 * 60 * 60,
   })
@@ -47,10 +47,13 @@ export async function createSession(userId: string): Promise<string> {
 export async function destroySession(): Promise<void> {
   const jar = await cookies()
   const token = jar.get(SESSION_COOKIE)?.value
-  if (token) {
-    await db.session.deleteMany({ where: { token } })
+  try {
+    if (token) {
+      await db.session.deleteMany({ where: { token } })
+    }
+  } finally {
+    jar.delete(SESSION_COOKIE)
   }
-  jar.delete(SESSION_COOKIE)
 }
 
 /** 从请求 Cookie 解析当前登录用户；过期会话自动清理 */

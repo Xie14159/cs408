@@ -43,7 +43,9 @@ const FavEntry = z.object({
 })
 
 const Body = z.object({
-  records: z.record(z.string(), QRecord),
+  records: z
+    .record(z.string(), QRecord)
+    .refine((r) => Object.keys(r).length <= 5000, '题目记录不能超过 5000 条'),
   daily: z.record(z.string(), z.number()),
   exams: z.array(ExamRecord),
   favorites: z.record(z.string(), FavEntry).optional().default({}),

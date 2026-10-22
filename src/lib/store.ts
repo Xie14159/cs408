@@ -98,7 +98,7 @@ export const useProgress = create<ProgressState>()(
           const key = todayKey()
           return {
             records: { ...s.records, [qid]: rec },
-            daily: { ...s.daily, [key]: (s.daily[key] ?? 1) },
+            daily: { ...s.daily, [key]: (s.daily[key] ?? 0) + 1 },
           }
         }),
       addExam: (rec) =>
@@ -106,7 +106,7 @@ export const useProgress = create<ProgressState>()(
           exams: [
             ...s.exams,
             { ...rec, id: rec.id ?? `exam-${Date.now()}`, ts: Date.now() },
-          ].slice(-50),
+          ].slice(-200),
         })),
       updateExam: (id, patch) =>
         set((s) => ({

@@ -5,7 +5,12 @@ import { createSession, hashPassword } from '@/lib/auth'
 
 const Body = z.object({
   email: z.string().trim().email('邮箱格式不正确'),
-  name: z.string().trim().min(1, '请填写昵称').max(24, '昵称最长 24 个字符'),
+  name: z
+    .string()
+    .trim()
+    .min(1, '请填写昵称')
+    .max(24, '昵称最长 24 个字符')
+    .regex(/^[^\x00-\x1F\x7F]+$/u, '昵称包含非法字符'),
   password: z.string().min(6, '密码至少 6 位').max(64, '密码最长 64 位'),
 })
 
