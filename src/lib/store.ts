@@ -12,6 +12,7 @@ import {
   applySkip,
   createSched,
   importSched,
+  type ReviewGrade,
   type WrongSched,
 } from '@/lib/ebbinghaus'
 
@@ -71,8 +72,8 @@ interface ProgressState {
   updateExam: (id: string, patch: Partial<ExamRecord>) => void
   toggleFavorite: (qid: string) => void
   setNote: (qid: string, note: string) => void
-  /** 每日错题回写：做对推进间隔，做错回炉（同一天幂等） */
-  recordReview: (qid: string, correct: boolean) => void
+  /** 每日错题回写：四档判定（一眼就会 / 想了一会儿 / 看解析才懂 / 又错），同一天幂等 */
+  recordReview: (qid: string, grade: ReviewGrade) => void
   /** 每日错题「没做」：不动阶段，只把到期日拉回今天 */
   skipReview: (qid: string) => void
   /** 把选题结果记入「今日已安排」（再开 10 道=并集追加） */
@@ -207,7 +208,7 @@ export const useProgress = create<ProgressState>()(
 
       /* -------------------- 每日错题（艾宾浩斯） -------------------- */
 
-      recordReview: (qid, correct) =>
+      recordReview: (qid, grade) =>
         set((s) => {
           const rec = s.sched[qid]
           if (!rec) return s
@@ -215,7 +216,7 @@ export const useProgress = create<ProgressState>()(
           // 幂等：同一题同一天只回写一次（双击 / 刷新重试不重复推进）
           if (rec.lastReviewedAt && rec.lastReviewedAt.slice(0, 10) === today) return s
           return {
-            sched: { ...s.sched, [qid]: applyReview(rec, correct, today) },
+            sched: { ...s.sched, [qid]: applyReview(rec, grade, today) },
             processedDaily: withProcessed(s.processedDaily, qid, today),
           }
         }),

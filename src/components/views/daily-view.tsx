@@ -27,7 +27,7 @@ import {
   addDays,
   dateKey,
   dueDateOf,
-  nextGapIfCorrect,
+  nextGap,
   selectDailyWrong,
   stageLabel,
   toDay,
@@ -157,7 +157,7 @@ export function DailyView() {
           <p className="font-mono text-xs text-primary">$ python review.py --today</p>
           <h1 className="text-2xl font-bold">每日错题 · 艾宾浩斯抗遗忘</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            到期优先、逾期越久越靠前；做对间隔拉长，做错隔天回炉。
+            到期优先、逾期越久越靠前；判对分三档，判错隔天回炉。池子不够 10 道时用「最久没碰的」补满。
           </p>
           {importMsg && (
             <p className="mt-2 font-mono text-xs text-primary">{importMsg}</p>
@@ -202,7 +202,7 @@ export function DailyView() {
             </span>
           </div>
           <p className="font-mono text-[11px] text-muted-foreground">
-            做错 → 明天重来 · 做对 → 间隔 ×2 递减推进
+            又错 → 明天重来 · 一眼就会 → 正常推进 · 想了会儿 → 推进但间隔打七折 · 看了解析 → 不推进
           </p>
         </div>
         <div className="mt-4 flex items-end gap-2 sm:gap-3">
@@ -227,8 +227,9 @@ export function DailyView() {
           </div>
         </div>
         <p className="mt-3 text-xs text-muted-foreground">
-          首次做对 → 2 天后；连对 5 轮累计 2→4→7→15→30 天，第 6 次做对归档。任何一次做错，
-          阶段回退一级（顽固题直接归零），到期日一律拉回明天。
+          首次「一眼就会」→ 2 天后；连对 5 轮累计 2→4→7→15→30 天，第 6 次归档。「想了会儿」按同阶段
+          推进但只拿 70% 间隔；「看了解析」不推进、明天原样再来。任何一次做错，阶段回退一级（顽固题
+          直接归零），到期日一律拉回明天。
         </p>
       </Card>
 
@@ -324,7 +325,8 @@ function DailyItem({
 
   const due = dueDateOf(rec, today)
   const overdue = (toDay(today) ?? 0) - (toDay(due) ?? 0)
-  const gap = nextGapIfCorrect(rec)
+  const gapGot = nextGap(rec, 'got')
+  const gapSlow = nextGap(rec, 'slow')
   const stubborn = rec.wrongCount >= STUBBORN_THRESHOLD
 
   return (
@@ -366,7 +368,9 @@ function DailyItem({
         </div>
         <span className="font-mono text-[11px] text-muted-foreground">
           {stageLabel(rec.stage)}
-          {gap !== null ? ` · 做对推进到 +${gap} 天` : ' · 再做对一次即归档'}
+          {gapGot === null
+            ? ' · 再判对一次即归档'
+            : ` · 一眼就会 +${gapGot} 天 / 想了会儿 +${gapSlow} 天`}
         </span>
       </div>
 
@@ -383,16 +387,35 @@ function DailyItem({
         <Button
           size="sm"
           className="h-7 gap-1 bg-emerald-600 text-xs hover:bg-emerald-700"
-          onClick={() => recordReview(qid, true)}
+          onClick={() => recordReview(qid, 'got')}
+          title="直接推出来，完全掌握：正常推进一级"
         >
           <Check className="h-3 w-3" />
-          做对
+          一眼就会
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 gap-1 border-amber-500/60 text-xs text-amber-600 hover:bg-amber-500/10"
+          onClick={() => recordReview(qid, 'slow')}
+          title="想了一会儿才出来：阶段照推，但间隔只拿 70%"
+        >
+          想了会儿
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 gap-1 text-xs text-muted-foreground"
+          onClick={() => recordReview(qid, 'peek')}
+          title="看了解析才懂：不推进，明天原样再来"
+        >
+          看了解析
         </Button>
         <Button
           size="sm"
           variant="destructive"
           className="h-7 gap-1 text-xs"
-          onClick={() => recordReview(qid, false)}
+          onClick={() => recordReview(qid, 'wrong')}
         >
           <X className="h-3 w-3" />
           又错

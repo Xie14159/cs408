@@ -183,9 +183,11 @@ export interface SelectDailyArgs {
 }
 
 /**
- * 艾宾浩斯选题：到期优先 → 顽固题补足 → 新错题补足 → 不硬凑。
+ * 艾宾浩斯选题：到期优先 → 顽固题补足 → 新错题补足 → 最久没碰的补满。
  *
- * 三个池互斥（if / else if / else if），选中集内不会重复，补足上限直接用参数。
+ * 四个池互斥，选中集内不会重复，补足上限直接用参数。
+ * 前三池填不满 target 时，从「未到期、也没被挑中」的题里按最后复习时间从早到晚补满，
+ * 避免每日配额空转（408 池子只有几十道，到期数常常不足 10）。
  */
 export function selectDailyWrong(args: SelectDailyArgs): string[] {
   const { sched } = args
@@ -200,6 +202,7 @@ export function selectDailyWrong(args: SelectDailyArgs): string[] {
   const due: string[] = []
   const stubborn: string[] = []
   const newbie: string[] = []
+  const rest: string[] = []
 
   for (const [qid, rec] of Object.entries(sched)) {
     if (!rec.active || rec.wrongCount <= 0) continue
@@ -208,6 +211,7 @@ export function selectDailyWrong(args: SelectDailyArgs): string[] {
     if (d <= t) due.push(qid)
     else if (rec.wrongCount >= STUBBORN_THRESHOLD) stubborn.push(qid)
     else if (rec.stage === 0 && !rec.lastReviewedAt && !rec.imported) newbie.push(qid)
+    else rest.push(qid)
   }
 
   due.sort((a, b) => {
@@ -218,6 +222,16 @@ export function selectDailyWrong(args: SelectDailyArgs): string[] {
   })
   stubborn.sort((a, b) => sched[b].wrongCount - sched[a].wrongCount)
   newbie.sort((a, b) => (toDay(sched[a].addedAt) ?? t) - (toDay(sched[b].addedAt) ?? t))
+  // 「最久没碰」：上次复习越早越靠前（从没复习过的排最前），同分再让到期日近的先上
+  rest.sort((a, b) => {
+    const la = sched[a].lastReviewedAt || ''
+    const lb = sched[b].lastReviewedAt || ''
+    if (la !== lb) return la < lb ? -1 : 1
+    const da = dueDay(sched[a], t)
+    const db = dueDay(sched[b], t)
+    if (da !== db) return da - db
+    return (toDay(sched[a].addedAt) ?? t) - (toDay(sched[b].addedAt) ?? t)
+  })
 
   const selected = rotateByTopic(due, target, topicOf, exclude)
   const seen = new Set(selected)
@@ -235,6 +249,18 @@ export function selectDailyWrong(args: SelectDailyArgs): string[] {
 
   for (const qid of rotateByTopic(
     newbie,
+    target - selected.length,
+    topicOf,
+    new Set([...seen, ...exclude]),
+  )) {
+    if (selected.length >= target) break
+    selected.push(qid)
+    seen.add(qid)
+  }
+
+  // ① 池子不闲置：还没到 10 道，就拿「最久没碰的」补满
+  for (const qid of rotateByTopic(
+    rest,
     target - selected.length,
     topicOf,
     new Set([...seen, ...exclude]),
@@ -284,19 +310,41 @@ export function importSched(
   }
 }
 
+/** 「想了一会儿」的间隔折扣：阶段照推，但只拿 70% 的间隔（最少 2 天） */
+const SLOW_GAP_FACTOR = 0.7
+const SLOW_GAP_MIN = 2
+
+function gapForStage(stage: number): number {
+  return EBBINGHAUS_INTERVALS[stage] ?? 30
+}
+
 /**
- * 复习回写（与 Python 版 record_review_result 一致）：
- * - 做对：stage+1，间隔取 INTERVALS[newStage]；到 ARCHIVE_STAGE 归档。
- * - 做错：wrongCount+1；归档题重新激活并回 0；顽固题强制回 0；否则回退一级；统一明天再练。
+ * 判对分三档（+ 又错）：
+ * - `got`  一眼就会 / 直接推出来 → 正常推进一级
+ * - `slow` 想了一会儿才出来     → 阶段照推，间隔打七折（说明还没真熟）
+ * - `peek` 看了解析才懂         → **不推进**，明天原样再来（原来会被当成"做对"直接推一级）
+ * - `wrong` 又错                → 回写规则同 Python 版
+ *
+ * 三档存在的理由：二进制"做对/又错"会把"看解析才懂"记成掌握，
+ * 于是一道没学会的题被推到 15 天、30 天后，等于从视野里消失。
  */
-export function applyReview(rec: WrongSched, correct: boolean, today: string): WrongSched {
+export type ReviewGrade = 'got' | 'slow' | 'peek' | 'wrong'
+
+export function applyReview(rec: WrongSched, grade: ReviewGrade, today: string): WrongSched {
   const t = toDay(today) ?? 0
-  if (correct) {
+
+  // 看了解析才懂：不动阶段、不加错次，明天再来一次
+  if (grade === 'peek') {
+    return { ...rec, active: true, nextReviewAt: fromDay(t + 1), lastReviewedAt: today }
+  }
+
+  if (grade === 'got' || grade === 'slow') {
     const nextStage = rec.stage + 1
     if (nextStage >= ARCHIVE_STAGE) {
       return { ...rec, stage: ARCHIVE_STAGE, active: false, nextReviewAt: '', lastReviewedAt: today }
     }
-    const gap = EBBINGHAUS_INTERVALS[nextStage] ?? 30
+    const base = gapForStage(nextStage)
+    const gap = grade === 'slow' ? Math.max(SLOW_GAP_MIN, Math.round(base * SLOW_GAP_FACTOR)) : base
     return {
       ...rec,
       stage: nextStage,
@@ -339,11 +387,18 @@ export function applyPostpone(rec: WrongSched, today: string, days = 1): WrongSc
 
 /* ------------------------------ 展示辅助 ------------------------------ */
 
-/** 该题「下一次做对」会推到几天后（用于卡片上写明收益） */
-export function nextGapIfCorrect(rec: WrongSched): number | null {
+/** 按档位算「下一次复习推到几天后」；归档返回 null */
+export function nextGap(rec: WrongSched, grade: ReviewGrade): number | null {
+  if (grade === 'peek' || grade === 'wrong') return 1
   const nextStage = rec.stage + 1
   if (nextStage >= ARCHIVE_STAGE) return null
-  return EBBINGHAUS_INTERVALS[nextStage] ?? 30
+  const base = gapForStage(nextStage)
+  return grade === 'slow' ? Math.max(SLOW_GAP_MIN, Math.round(base * SLOW_GAP_FACTOR)) : base
+}
+
+/** 兼容旧调用：等价于 nextGap(rec, 'got') */
+export function nextGapIfCorrect(rec: WrongSched): number | null {
+  return nextGap(rec, 'got')
 }
 
 /** 阶段文案 */
