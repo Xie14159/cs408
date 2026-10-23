@@ -6,7 +6,19 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
+const eslintConfig = [
+  {
+    // 构建产物与历史备份不参与检查（否则 8000+ 条噪音全部来自 .next.bak）
+    ignores: [
+      ".next/**",
+      ".next.*/**",
+      "node_modules/**",
+      ".draft/**",
+      "**/*.bak_*/**",
+      "next-env.d.ts",
+    ],
+  },
+  ...nextCoreWebVitals, ...nextTypescript, {
   rules: {
     // TypeScript rules
     "@typescript-eslint/no-explicit-any": "off",
@@ -19,6 +31,10 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     // React rules
     "react-hooks/exhaustive-deps": "off",
     "react-hooks/purity": "off",
+    // 该规则把「挂载后读 localStorage / matchMedia 再同步到 state」判为问题。
+    // 本站这类写法是刻意的：首帧必须与 SSR 一致，读到真实值后再切换，否则水合报错。
+    // 真正会在渲染期产生副作用的写法由 react-compiler 规则兜底，故此处关闭。
+    "react-hooks/set-state-in-effect": "off",
     "react/no-unescaped-entities": "off",
     "react/display-name": "off",
     "react/prop-types": "off",

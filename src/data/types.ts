@@ -183,19 +183,15 @@ export const SOURCE_LABEL: Record<SourceKind, string> = {
   mock: '模拟卷',
 }
 
-/** 408 卷面蓝图：单选 1-11 DS、12-22 CO、23-32 OS、33-40 CN；综合 41-47 固定科目 */
+/**
+ * 408 卷面蓝图：单选 1-11 DS、12-22 CO、23-32 OS、33-40 CN，逐年固定。
+ * 综合题 41-47 的科目**不固定**（如 2019 年是 DS/DS/OS/OS/CO/CO/CN），
+ * 因此不要按题号推科目，一律以题目自身的 subject 字段为准。
+ */
 export function subjectOfNumber(n: number): SubjectCode {
   if (n <= 11) return 'ds'
   if (n <= 22) return 'co'
   if (n <= 32) return 'os'
-  return 'cn'
-}
-
-/** 综合题固定蓝图：41-42 DS、43-44 CO、45-46 OS、47 CN（分值 23+23+15+9=70） */
-export function appSubjectOfNumber(n: number): SubjectCode {
-  if (n <= 42) return 'ds'
-  if (n <= 44) return 'co'
-  if (n <= 46) return 'os'
   return 'cn'
 }
 
