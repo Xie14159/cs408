@@ -73,3 +73,5 @@ Caddyfile
 *.bak_*
 _cookie_test.txt
 
+.draft/
+

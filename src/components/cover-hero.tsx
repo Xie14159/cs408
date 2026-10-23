@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button'
 import { Typewriter } from '@/components/typewriter'
 import { GithubCounters } from '@/components/github-counters'
 import { ALL_QUESTIONS, QUESTIONS, CURATED, MOCKS, YEARS } from '@/data'
-import { NOTE_CATEGORIES } from '@/data/notes'
 import { SUBJECTS, SUBJECT_ORDER } from '@/data/types'
 import type { SubjectCode } from '@/data/types'
 import { useProgress, useUI } from '@/lib/store'
@@ -19,7 +18,8 @@ const SUBJECT_ICONS: Record<SubjectCode, React.ComponentType<{ className?: strin
   cn: Globe,
 }
 
-const NOTES_CHAPTER_COUNT = NOTE_CATEGORIES.reduce((s, c) => s + c.chapters.length, 0)
+/** 经验笔记总章数（笔记正文约 550 KB，不随首屏加载，这里只放数字） */
+const NOTES_CHAPTER_COUNT = 41
 
 /** 跑马灯词条：四科高频考点点名 */
 const MARQUEE_ITEMS = [

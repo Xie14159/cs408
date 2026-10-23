@@ -21,11 +21,19 @@ import { PracticeView } from '@/components/views/practice-view'
 import { ExamView } from '@/components/views/exam-view'
 import { WrongBookView } from '@/components/views/wrong-book-view'
 import { FavoritesView } from '@/components/views/favorites-view'
-import { NotesView } from '@/components/views/notes-view'
+const NotesView = dynamic(() => import('@/components/views/notes-view').then((m) => m.NotesView), {
+  loading: () => (
+    <div className="py-24 text-center font-mono text-xs text-muted-foreground">
+      $ loading notes ...
+    </div>
+  ),
+})
 import { StatsView } from '@/components/views/stats-view'
 import { AboutView } from '@/components/views/about-view'
-import { ALL_QUESTIONS } from '@/data'
-import { useUI } from '@/lib/store'
+import { DailyView } from '@/components/views/daily-view'
+import { ALL_QUESTIONS, isBankReady, loadBank } from '@/data'
+import { useUI, useProgress } from '@/lib/store'
+import dynamic from 'next/dynamic'
 import type { ViewId } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
@@ -35,6 +43,7 @@ const NAV: Array<{ id: ViewId; label: string }> = [
   { id: 'practice', label: '刷题训练' },
   { id: 'exam', label: '模拟考试' },
   { id: 'wrong', label: '错题本' },
+  { id: 'daily', label: '每日错题' },
   { id: 'favorites', label: '收藏夹' },
   { id: 'notes', label: '经验笔记' },
   { id: 'stats', label: '数据统计' },
@@ -47,6 +56,7 @@ const VIEW_TITLES: Record<ViewId, string> = {
   practice: '刷题训练',
   exam: '模拟考试',
   wrong: '错题本',
+  daily: '每日错题 · 艾宾浩斯抗遗忘',
   favorites: '收藏夹',
   notes: '经验笔记',
   stats: '数据统计',
@@ -61,6 +71,40 @@ export function AppShell() {
 
   // 账号初始化 + 云同步桥（登录状态下进度变化防抖推送）
   useSyncBridge()
+
+  // 题库是 ~3.4 MB 的静态数据，不阻塞首屏：先画出外壳，空闲时再灌进来
+  const [bankReady, setBankReady] = React.useState(isBankReady())
+  React.useEffect(() => {
+    if (isBankReady()) {
+      setBankReady(true)
+      return
+    }
+    let alive = true
+    const run = () => {
+      loadBank().then(() => {
+        if (alive) setBankReady(true)
+      })
+    }
+    const w = window as Window & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number
+      cancelIdleCallback?: (id: number) => void
+    }
+    const hasIdle = typeof w.requestIdleCallback === 'function'
+    const id = hasIdle ? w.requestIdleCallback!(run, { timeout: 1200 }) : window.setTimeout(run, 0)
+    return () => {
+      alive = false
+      if (hasIdle) w.cancelIdleCallback?.(id)
+      else window.clearTimeout(id)
+    }
+  }, [])
+
+  // 一次性把外部错题本（不会 / 不熟）并入错题本与记忆曲线；标记写在 localStorage，只跑一次
+  const externalImportedAt = useProgress((s) => s.externalImportedAt)
+  const importExternalWrong = useProgress((s) => s.importExternalWrong)
+  React.useEffect(() => {
+    if (externalImportedAt || !bankReady) return
+    importExternalWrong()
+  }, [externalImportedAt, importExternalWrong, bankReady])
 
   // hash <-> view 双向同步
   React.useEffect(() => {
@@ -187,15 +231,27 @@ export function AppShell() {
 
       {/* ================= 主体 ================= */}
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 md:py-14">
-        {view === 'home' && <HomeView />}
-        {view === 'questions' && <QuestionsView />}
-        {view === 'practice' && <PracticeView />}
-        {view === 'exam' && <ExamView />}
-        {view === 'wrong' && <WrongBookView />}
-        {view === 'favorites' && <FavoritesView />}
-        {view === 'notes' && <NotesView />}
-        {view === 'stats' && <StatsView />}
-        {view === 'about' && <AboutView />}
+        {bankReady ? (
+          <>
+            {view === 'home' && <HomeView />}
+            {view === 'questions' && <QuestionsView />}
+            {view === 'practice' && <PracticeView />}
+            {view === 'exam' && <ExamView />}
+            {view === 'wrong' && <WrongBookView />}
+            {view === 'daily' && <DailyView />}
+            {view === 'favorites' && <FavoritesView />}
+            {view === 'notes' && <NotesView />}
+            {view === 'stats' && <StatsView />}
+            {view === 'about' && <AboutView />}
+          </>
+        ) : (
+          <div className="flex flex-col items-center gap-4 py-28 text-center">
+            <div className="h-9 w-9 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
+            <p className="font-mono text-xs text-muted-foreground">
+              $ loading question bank ...
+            </p>
+          </div>
+        )}
       </main>
 
       {/* ================= 页脚（粘底） ================= */}
@@ -206,7 +262,7 @@ export function AppShell() {
               <span className="text-primary">$</span> echo "考研加油" && ./ship --offer
             </p>
             <p className="font-mono text-[11px] text-muted-foreground/70">
-              {ALL_QUESTIONS.length} 道题 · 真题 2009–2025 · 登录后记录云端同步
+              {ALL_QUESTIONS.length || 1589} 道题 · 真题 2009–2025 · 登录后记录云端同步
             </p>
           </div>
           <p className="text-[11px] leading-relaxed text-muted-foreground/60">

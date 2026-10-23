@@ -3,6 +3,16 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { SubjectCode } from '@/data/types'
+import { EXTERNAL_WRONG } from '@/data/external-wrong'
+import {
+  addDays,
+  applyPostpone,
+  applyReview,
+  applySkip,
+  createSched,
+  importSched,
+  type WrongSched,
+} from '@/lib/ebbinghaus'
 
 /* ---------------- 进度存储（localStorage 持久化） ---------------- */
 
@@ -46,12 +56,34 @@ interface ProgressState {
   exams: ExamRecord[]
   /** 题目收藏 + 备注（qid -> 条目） */
   favorites: Record<string, FavEntry>
+  /** 艾宾浩斯调度：qid -> 记忆曲线记录（错题一进池就有记录，与错题本共用同一批题） */
+  sched: Record<string, WrongSched>
+  /** 'YYYY-MM-DD' -> 当天已推送的 qid 顺序（持久化：刷新后还是同一份，不会换一批） */
+  assignedDaily: Record<string, string[]>
+  /** 'YYYY-MM-DD' -> 当天已处理（做对 / 又错 / 没做）的 qid */
+  processedDaily: Record<string, string[]>
+  /** 外部错题本补登完成日期；非空表示已跑过，不再重复导入 */
+  externalImportedAt: string
   submitAnswer: (qid: string, result: 'correct' | 'wrong') => void
   markApplication: (qid: string, mastered: boolean) => void
   addExam: (rec: Omit<ExamRecord, 'id' | 'ts'> & { id?: string }) => void
   updateExam: (id: string, patch: Partial<ExamRecord>) => void
   toggleFavorite: (qid: string) => void
   setNote: (qid: string, note: string) => void
+  /** 每日错题回写：做对推进间隔，做错回炉（同一天幂等） */
+  recordReview: (qid: string, correct: boolean) => void
+  /** 每日错题「没做」：不动阶段，只把到期日拉回今天 */
+  skipReview: (qid: string) => void
+  /** 把选题结果记入「今日已安排」（再开 10 道=并集追加） */
+  assignDaily: (qids: string[]) => void
+  /** 顺延指定错题的到期日（默认 +1 天） */
+  postponeDaily: (qids: string[], days?: number) => void
+  /** 清空今日：剩余题顺延到明天，今日安排与已处理都归零 */
+  clearToday: () => void
+  /** 把错题本里已有、但还没进调度池的错题一次性批量登记，返回登记条数 */
+  importExistingWrong: () => number
+  /** 并入外部错题本（不会 38 + 不熟 13），只在首次进入时跑一次，返回并入条数 */
+  importExternalWrong: () => number
   resetAll: () => void
 }
 
@@ -62,6 +94,38 @@ function todayKey(): string {
   return `${d.getFullYear()}-${m}-${day}`
 }
 
+/** 错题进池 / 又错一次：首次进池把到期日摊到 14 天窗口，之后一律「明天再练」 */
+function bumpSched(
+  all: Record<string, WrongSched>,
+  qid: string,
+  today: string,
+): Record<string, WrongSched> {
+  const prev = all[qid]
+  if (!prev) return { ...all, [qid]: createSched(qid, today) }
+  return {
+    ...all,
+    [qid]: {
+      ...prev,
+      wrongCount: prev.wrongCount + 1,
+      active: true,
+      // 已归档的题又做错：重新激活并从第 1 轮开始
+      stage: prev.active ? prev.stage : 0,
+      nextReviewAt: addDays(today, 1),
+    },
+  }
+}
+
+/** 标记今日已处理；只保留当天 key，防无限增长 */
+function withProcessed(
+  processed: Record<string, string[]>,
+  qid: string,
+  today: string,
+): Record<string, string[]> {
+  const cur = new Set(processed[today] ?? [])
+  cur.add(qid)
+  return { [today]: Array.from(cur).sort() }
+}
+
 export const useProgress = create<ProgressState>()(
   persist(
     (set) => ({
@@ -69,6 +133,10 @@ export const useProgress = create<ProgressState>()(
       daily: {},
       exams: [],
       favorites: {},
+      sched: {},
+      assignedDaily: {},
+      processedDaily: {},
+      externalImportedAt: '',
       submitAnswer: (qid, result) =>
         set((s) => {
           const prev = s.records[qid]
@@ -82,6 +150,8 @@ export const useProgress = create<ProgressState>()(
           const key = todayKey()
           return {
             records: { ...s.records, [qid]: rec },
+            // 答错即自动进艾宾浩斯池（与错题本同一批题，不需要用户手动登记）
+            sched: result === 'wrong' ? bumpSched(s.sched, qid, key) : s.sched,
             daily: { ...s.daily, [key]: (s.daily[key] ?? 0) + 1 },
           }
         }),
@@ -98,6 +168,7 @@ export const useProgress = create<ProgressState>()(
           const key = todayKey()
           return {
             records: { ...s.records, [qid]: rec },
+            sched: mastered ? s.sched : bumpSched(s.sched, qid, key),
             daily: { ...s.daily, [key]: (s.daily[key] ?? 0) + 1 },
           }
         }),
@@ -132,7 +203,127 @@ export const useProgress = create<ProgressState>()(
             },
           }
         }),
-      resetAll: () => set({ records: {}, daily: {}, exams: [], favorites: {} }),
+
+      /* -------------------- 每日错题（艾宾浩斯） -------------------- */
+
+      recordReview: (qid, correct) =>
+        set((s) => {
+          const rec = s.sched[qid]
+          if (!rec) return s
+          const today = todayKey()
+          // 幂等：同一题同一天只回写一次（双击 / 刷新重试不重复推进）
+          if (rec.lastReviewedAt && rec.lastReviewedAt.slice(0, 10) === today) return s
+          return {
+            sched: { ...s.sched, [qid]: applyReview(rec, correct, today) },
+            processedDaily: withProcessed(s.processedDaily, qid, today),
+          }
+        }),
+      skipReview: (qid) =>
+        set((s) => {
+          const rec = s.sched[qid]
+          if (!rec || !rec.active) return s
+          const today = todayKey()
+          if ((s.processedDaily[today] ?? []).includes(qid)) return s
+          return {
+            sched: { ...s.sched, [qid]: applySkip(rec, today) },
+            processedDaily: withProcessed(s.processedDaily, qid, today),
+          }
+        }),
+      assignDaily: (qids) =>
+        set((s) => {
+          const today = todayKey()
+          const merged = new Set([...(s.assignedDaily[today] ?? []), ...qids])
+          return { assignedDaily: { [today]: Array.from(merged) } }
+        }),
+      postponeDaily: (qids, days = 1) =>
+        set((s) => {
+          const today = todayKey()
+          const next = { ...s.sched }
+          for (const qid of qids) {
+            const rec = next[qid]
+            if (rec?.active) next[qid] = applyPostpone(rec, today, days)
+          }
+          return { sched: next }
+        }),
+      clearToday: () =>
+        set((s) => {
+          const today = todayKey()
+          const list = s.assignedDaily[today] ?? []
+          const next = { ...s.sched }
+          for (const qid of list) {
+            const rec = next[qid]
+            if (rec?.active) next[qid] = applyPostpone(rec, today, 1)
+          }
+          return {
+            sched: next,
+            // 空数组而非删 key：留着表示「今天已经安排过、被用户清空了」，避免自动重选
+            assignedDaily: { [today]: [] },
+            processedDaily: { [today]: [] },
+          }
+        }),
+
+      importExistingWrong: () => {
+        const today = todayKey()
+        let added = 0
+        set((s) => {
+          const next = { ...s.sched }
+          for (const [qid, rec] of Object.entries(s.records)) {
+            if (next[qid]) continue
+            if (!rec || rec.wrong <= 0) continue
+            next[qid] = importSched(qid, today, rec.wrong)
+            added++
+          }
+          return added > 0 ? { sched: next } : {}
+        })
+        return added
+      },
+
+      importExternalWrong: () => {
+        const today = todayKey()
+        let added = 0
+        set((s) => {
+          if (s.externalImportedAt) return {}
+          const records = { ...s.records }
+          const sched = { ...s.sched }
+          for (const { qid, tag } of EXTERNAL_WRONG) {
+            // 「不会」按错两次计、7 天窗口；「不熟」按错一次、14 天窗口
+            const heavy = tag === '不会'
+            if (!records[qid]) {
+              records[qid] = {
+                attempts: 1,
+                correct: 0,
+                wrong: heavy ? 2 : 1,
+                lastResult: 'wrong',
+                lastAt: Date.now(),
+              }
+            }
+            if (!sched[qid]) {
+              sched[qid] = importSched(
+                qid,
+                today,
+                heavy ? 2 : 1,
+                heavy ? '方法不会' : '概念模糊',
+                heavy ? 7 : 14,
+              )
+              added++
+            }
+          }
+          return { records, sched, externalImportedAt: today }
+        })
+        return added
+      },
+
+      resetAll: () =>
+        set({
+          records: {},
+          daily: {},
+          exams: [],
+          favorites: {},
+          sched: {},
+          assignedDaily: {},
+          processedDaily: {},
+          externalImportedAt: '',
+        }),
     }),
     {
       name: '408lab-progress-v1',
@@ -148,6 +339,7 @@ export type ViewId =
   | 'practice'
   | 'exam'
   | 'wrong'
+  | 'daily'
   | 'favorites'
   | 'notes'
   | 'stats'
