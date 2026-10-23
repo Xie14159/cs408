@@ -110,7 +110,7 @@ export const y2018c: Question[] = [
     "type": "single",
     "topic": "排序",
     "difficulty": 2,
-    "source": "adapted",
+    "source": "real",
     "score": 2,
     "question": "已知二叉排序树如下图所示，元素之间应满足的大小关系是（ ）。",
     "options": [
@@ -120,7 +120,7 @@ export const y2018c: Question[] = [
       "x4<x3<x5"
     ],
     "answer": "C",
-    "explanation": "【原题含图或表，此处为文字版，条件可能不全，建议对照纸质真题核对】根据 二叉排序树 的特性：中序遍历（LNR）得到的是一个递增序列。图中二叉排序树的中序遍历序列为\nxi,x3,x5,x4,x2\n, 可知\nx3<x5<x4\n。"
+    "explanation": "【原题含图/表，本库未收录图，条件请对照纸质卷】根据 二叉排序树 的特性：中序遍历（LNR）得到的是一个递增序列。图中二叉排序树的中序遍历序列为\nxi,x3,x5,x4,x2\n, 可知\nx3<x5<x4\n。"
   },
   {
     "id": "q-2018-07",

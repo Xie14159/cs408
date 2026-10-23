@@ -130,7 +130,7 @@ export const y2020c: Question[] = [
     "type": "single",
     "topic": "图",
     "difficulty": 2,
-    "source": "adapted",
+    "source": "real",
     "score": 2,
     "question": "已知无向图 G 如下所示，使用克鲁斯卡尔（Kruskal）算法求图 G 的最小生成树，加入到最小生成树中的边依次是（ ）。",
     "options": [
@@ -140,7 +140,7 @@ export const y2020c: Question[] = [
       "(a,e)(c,e)(b,e)(b,f)(b,d)"
     ],
     "answer": "A",
-    "explanation": "【原题含图或表，此处为文字版，条件可能不全，建议对照纸质真题核对】kruskal 算法 依次将当前 不会导致环路的最短边 加入最小生成树中："
+    "explanation": "【原题含图/表，本库未收录图，条件请对照纸质卷】kruskal 算法 依次将当前 不会导致环路的最短边 加入最小生成树中："
   },
   {
     "id": "q-2020-08",

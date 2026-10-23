@@ -542,7 +542,7 @@ export const y2012c: Question[] = [
     "type": "single",
     "topic": "进程与线程",
     "difficulty": 2,
-    "source": "adapted",
+    "source": "real",
     "score": 2,
     "question": "假设 5 个进程\r\nP0\r\n、\r\nP1\r\n、\r\nP2\r\n、\r\nP3\r\n、\r\nP4\r\n共享三类资源\r\nR1\r\n、\r\nR2\r\n、\r\nR3\r\n，这些资源总数分别为 18、6、22。T0 时刻的资源分配情况如下表所示，此时存在的一个安全序列是（ ）。",
     "options": [
@@ -552,7 +552,7 @@ export const y2012c: Question[] = [
       "P3,P4,P2,P1,P0"
     ],
     "answer": "D",
-    "explanation": "【原题含图或表，此处为文字版，条件可能不全，建议对照纸质真题核对】首先求得各进程的需求矩阵 Need 与可利用资源矢量 Available：\n\n比较 Need 和 Available 可以发现，初始时进程\r\nP1\r\n与\r\nP3\r\n可满足需求，排除 A、C。尝试给\r\nP1\r\n分配资源，则\r\nP1\r\n完成后 Available 将变为 (6,3,6)，无法满足\r\nP0\r\n的需求，排除 B。尝试给\r\nP3\r\n分配资源，则\r\nP3\r\n完成后 Available 将变为 (4,3,7)，该向量能满足其他所有进程的需求。所以，以\r\nP3\r\n开头的所有序列都是 安全序列。"
+    "explanation": "【原题含图/表，本库未收录图，条件请对照纸质卷】首先求得各进程的需求矩阵 Need 与可利用资源矢量 Available：\n\n比较 Need 和 Available 可以发现，初始时进程\r\nP1\r\n与\r\nP3\r\n可满足需求，排除 A、C。尝试给\r\nP1\r\n分配资源，则\r\nP1\r\n完成后 Available 将变为 (6,3,6)，无法满足\r\nP0\r\n的需求，排除 B。尝试给\r\nP3\r\n分配资源，则\r\nP3\r\n完成后 Available 将变为 (4,3,7)，该向量能满足其他所有进程的需求。所以，以\r\nP3\r\n开头的所有序列都是 安全序列。"
   },
   {
     "id": "q-2012-28",
