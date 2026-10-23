@@ -4,6 +4,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { SubjectCode } from '@/data/types'
 import { EXTERNAL_WRONG } from '@/data/external-wrong'
+import { ALL_MAP } from '@/data'
 import {
   addDays,
   applyPostpone,
@@ -280,12 +281,16 @@ export const useProgress = create<ProgressState>()(
 
       importExternalWrong: () => {
         const today = todayKey()
+        // 题库还没加载完就导入，会把 51 条全当成「本库没有」并错误地打上已导入标记
+        if (ALL_MAP.size === 0) return 0
         let added = 0
         set((s) => {
           if (s.externalImportedAt) return {}
           const records = { ...s.records }
           const sched = { ...s.sched }
           for (const { qid, tag } of EXTERNAL_WRONG) {
+            // 拼错的题号、或本库未收录的那一套（2026 卷）直接跳过，不写脏记录
+            if (!ALL_MAP.has(qid)) continue
             // 「不会」按错两次计、7 天窗口；「不熟」按错一次、14 天窗口
             const heavy = tag === '不会'
             if (!records[qid]) {

@@ -90,7 +90,7 @@ export function AppShell() {
       cancelIdleCallback?: (id: number) => void
     }
     const hasIdle = typeof w.requestIdleCallback === 'function'
-    const id = hasIdle ? w.requestIdleCallback!(run, { timeout: 1200 }) : window.setTimeout(run, 0)
+    const id = hasIdle ? w.requestIdleCallback!(run, { timeout: 3000 }) : window.setTimeout(run, 0)
     return () => {
       alive = false
       if (hasIdle) w.cancelIdleCallback?.(id)
