@@ -72,18 +72,29 @@ export function AppShell() {
   // 账号初始化 + 云同步桥（登录状态下进度变化防抖推送）
   useSyncBridge()
 
-  // 题库是 ~3.4 MB 的静态数据，不阻塞首屏：先画出外壳，空闲时再灌进来
-  const [bankReady, setBankReady] = React.useState(isBankReady())
+  // 题库是 ~2.6 MB 的静态数据，不阻塞首屏：先画出外壳，空闲时再灌进来。
+  // 三态：loading（骨架）→ ready（渲染全部视图）/ error（可重试）。
+  const [bankStatus, setBankStatus] = React.useState<'loading' | 'ready' | 'error'>(
+    isBankReady() ? 'ready' : 'loading',
+  )
+  const [reloadKey, setReloadKey] = React.useState(0)
   React.useEffect(() => {
     if (isBankReady()) {
-      setBankReady(true)
+      // 已经在初始化时就绪（例如热更新后模块仍在），无需任何 setState
+      if (bankStatus !== 'ready') setBankStatus('ready')
       return
     }
     let alive = true
     const run = () => {
-      loadBank().then(() => {
-        if (alive) setBankReady(true)
-      })
+      loadBank()
+        .then(() => {
+          if (alive) setBankStatus('ready')
+        })
+        .catch((err) => {
+          // 动态 chunk 拉取失败（弱网 / 缓存损坏 / 部署换了 hash）：给出可重试的兜底，不要停在骨架屏
+          console.error('[bank] 题库加载失败', err)
+          if (alive) setBankStatus('error')
+        })
     }
     const w = window as Window & {
       requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number
@@ -96,15 +107,15 @@ export function AppShell() {
       if (hasIdle) w.cancelIdleCallback?.(id)
       else window.clearTimeout(id)
     }
-  }, [])
+  }, [reloadKey, bankStatus])
 
   // 一次性把外部错题本（不会 / 不熟）并入错题本与记忆曲线；标记写在 localStorage，只跑一次
   const externalImportedAt = useProgress((s) => s.externalImportedAt)
   const importExternalWrong = useProgress((s) => s.importExternalWrong)
   React.useEffect(() => {
-    if (externalImportedAt || !bankReady) return
+    if (externalImportedAt || bankStatus !== 'ready') return
     importExternalWrong()
-  }, [externalImportedAt, importExternalWrong, bankReady])
+  }, [externalImportedAt, importExternalWrong, bankStatus])
 
   // hash <-> view 双向同步
   React.useEffect(() => {
@@ -231,7 +242,7 @@ export function AppShell() {
 
       {/* ================= 主体 ================= */}
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 md:py-14">
-        {bankReady ? (
+        {bankStatus === 'ready' ? (
           <>
             {view === 'home' && <HomeView />}
             {view === 'questions' && <QuestionsView />}
@@ -244,6 +255,25 @@ export function AppShell() {
             {view === 'stats' && <StatsView />}
             {view === 'about' && <AboutView />}
           </>
+        ) : bankStatus === 'error' ? (
+          <div className="flex flex-col items-center gap-4 py-28 text-center">
+            <p className="font-mono text-xs text-muted-foreground">
+              $ load question bank ... <span className="text-destructive">failed</span>
+            </p>
+            <p className="text-sm text-muted-foreground">
+              题库没能加载出来，通常是网络中断或缓存过期。点下面重试。
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setBankStatus('loading')
+                setReloadKey((k) => k + 1)
+              }}
+              className="rounded-lg border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-medium text-primary transition hover:bg-primary/20"
+            >
+              重新加载题库
+            </button>
+          </div>
         ) : (
           <div className="flex flex-col items-center gap-4 py-28 text-center">
             <div className="h-9 w-9 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />

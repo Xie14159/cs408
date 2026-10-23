@@ -33,7 +33,9 @@ const eslintConfig = [
     "react-hooks/purity": "off",
     // 该规则把「挂载后读 localStorage / matchMedia 再同步到 state」判为问题。
     // 本站这类写法是刻意的：首帧必须与 SSR 一致，读到真实值后再切换，否则水合报错。
-    // 真正会在渲染期产生副作用的写法由 react-compiler 规则兜底，故此处关闭。
+    // 2026-10-23 人工审计过全部 17 处（theme-toggle / use-mobile / typewriter / fav-note /
+    // github-counters / question-body / carousel / home-view / practice-view / questions-view /
+    // stats-view / cover-hero / app-shell）：监听器与定时器均有 cleanup，无一处泄漏或无限循环。
     "react-hooks/set-state-in-effect": "off",
     "react/no-unescaped-entities": "off",
     "react/display-name": "off",

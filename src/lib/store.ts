@@ -332,6 +332,20 @@ export const useProgress = create<ProgressState>()(
     }),
     {
       name: '408lab-progress-v1',
+      // 进度是本地唯一副本，加版本号 + 兜底迁移，避免将来字段改名时静默丢数据。
+      // 升级规则：结构不兼容时才 bump version，并在 migrate 里显式转换。
+      version: 1,
+      migrate: (persisted) => persisted as ProgressState,
+      // 只持久化用户数据，不存 action 与临时态（否则每次改函数签名都会污染旧存档）
+      partialize: (s) => ({
+        records: s.records,
+        exams: s.exams,
+        favorites: s.favorites,
+        sched: s.sched,
+        assignedDaily: s.assignedDaily,
+        processedDaily: s.processedDaily,
+        externalImportedAt: s.externalImportedAt,
+      }),
     },
   ),
 )
