@@ -13,11 +13,22 @@
 /** stage 0~5 对应的复习间隔（天）。注意回写用的是 INTERVALS[newStage]，故实际节奏是 2/4/7/15/30。 */
 export const EBBINGHAUS_INTERVALS: number[] = [1, 2, 4, 7, 15, 30]
 
-/** 错误次数达到此值视为顽固题：优先级抬升，且再次做错强制回到 stage 0 */
-export const STUBBORN_THRESHOLD = 3
+/**
+ * 错误次数达到此值视为顽固题：优先级抬升，且再次做错强制回到 stage 0。
+ *
+ * 取 2 而不是 3：外部导入的「不会」题 wrongCount 直接写 2（见 store.ts 的
+ * importExternalWrong），阈值 3 会把它们全部挡在顽固池外，等于标了「不会」
+ * 却不给优先权。错两次已经说明没记住，只剩 55 天，该优先。
+ */
+export const STUBBORN_THRESHOLD = 2
 
-/** 做对推进到该阶段即归档（退出待练池） */
-export const ARCHIVE_STAGE = 6
+/**
+ * 做对推进到该阶段即归档（退出待练池）。
+ *
+ * 取 4 而不是 6：6 档累计 2+4+7+15+30 = 58 天，比到初试的剩余天数还长，
+ * 「做对 6 次归档」在考前来不及发生；4 档累计 2+4+7 = 13 天，可跑完多轮。
+ */
+export const ARCHIVE_STAGE = 4
 
 /** 错误类型对优先级的加成：方法不会最该先看，计算失误最不急 */
 export const TAG_PRIORITY: Record<string, number> = {
@@ -195,7 +206,9 @@ export function selectDailyWrong(args: SelectDailyArgs): string[] {
   const target = args.target ?? 10
   const exclude = new Set(args.exclude ?? [])
   const topicOf = args.topicOf ?? (() => '')
-  const maxStubborn = args.maxStubborn ?? 5
+  // 阈值降到 2 之后顽固池会明显变大（导入的「不会」全在里面），每天 5 个名额
+  // 会把一半配额浪费在到期池之外，提到 10 让顽固题能真正轮转起来。
+  const maxStubborn = args.maxStubborn ?? 10
   const t = toDay(today)
   if (t === null || target <= 0) return []
 

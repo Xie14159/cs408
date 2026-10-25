@@ -89,20 +89,26 @@ export function DailyView() {
     const tn = toDay(addDays(today, 1)) ?? 0
     let pool = 0
     let dueToday = 0
+    let overdue = 0
     let dueTomorrow = 0
     let archived = 0
+    let stubborn = 0
     for (const rec of Object.values(sched)) {
       if (!rec.active || rec.wrongCount <= 0) {
         if (!rec.active && rec.stage >= ARCHIVE_STAGE) archived += 1
         continue
       }
       pool += 1
+      if (rec.wrongCount >= STUBBORN_THRESHOLD) stubborn += 1
       const d = dueDateOf(rec, today)
       const dn = toDay(d) ?? 0
-      if (dn <= t) dueToday += 1
-      else if (dn <= tn) dueTomorrow += 1
+      if (dn <= t) {
+        dueToday += 1
+        // 严格早于今天才算逾期；当天到期的留在「今日到期」里，避免重复计数
+        if (dn < t) overdue += 1
+      } else if (dn <= tn) dueTomorrow += 1
     }
-    return { pool, dueToday, dueTomorrow, archived }
+    return { pool, dueToday, overdue, dueTomorrow, archived, stubborn }
   }, [sched, today])
 
   const startMore = () => {
@@ -157,7 +163,7 @@ export function DailyView() {
           <p className="font-mono text-xs text-primary">$ python review.py --today</p>
           <h1 className="text-2xl font-bold">每日错题 · 艾宾浩斯抗遗忘</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            到期优先、逾期越久越靠前；判对分三档，判错隔天回炉。池子不够 10 道时用「最久没碰的」补满。
+            到期优先、逾期越久越靠前；判对分三档，判错隔天回炉。做对 {ARCHIVE_STAGE} 次归档，池子不够 10 道时用「最久没碰的」补满。
           </p>
           {importMsg && (
             <p className="mt-2 font-mono text-xs text-primary">{importMsg}</p>
@@ -206,7 +212,7 @@ export function DailyView() {
           </p>
         </div>
         <div className="mt-4 flex items-end gap-2 sm:gap-3">
-          {EBBINGHAUS_INTERVALS.slice(1).map((days, i) => {
+          {EBBINGHAUS_INTERVALS.slice(1, ARCHIVE_STAGE).map((days, i) => {
             const stage = i + 1
             return (
               <div key={stage} className="flex flex-1 flex-col items-center gap-1.5">
@@ -234,9 +240,10 @@ export function DailyView() {
       </Card>
 
       {/* ------------------------------ 概览 ------------------------------ */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Stat label="待练池" value={stats.pool} hint="含今天与未来到期" />
-        <Stat label="今日到期" value={stats.dueToday} hint="逾期越久越靠前" tone="rose" />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+        <Stat label="待练池" value={stats.pool} hint={`顽固 ${stats.stubborn} 道`} />
+        <Stat label="今日到期" value={stats.dueToday} hint="含今天才到期的" tone="rose" />
+        <Stat label="其中逾期" value={stats.overdue} hint="早于今天，越久越靠前" tone="rose" />
         <Stat label="今天已处理" value={processed.size} hint={`本批共 ${list.length} 道`} />
         <Stat label="明日到期" value={stats.dueTomorrow} hint={`已归档 ${stats.archived} 道`} tone="muted" />
       </div>
