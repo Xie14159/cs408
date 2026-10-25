@@ -35,8 +35,8 @@ import {
 } from '@/lib/ebbinghaus'
 import { cn } from '@/lib/utils'
 
-/** 每日一次推 10 道（与拼好卷系统同参数） */
-const DAILY_TARGET = 10
+/** 每日一批 15 道：实测稳态约 12 道/天到期，10 道会每天欠 2 道；15 道约 10 分钟 */
+const DAILY_TARGET = 15
 
 export function DailyView() {
   const sched = useProgress((s) => s.sched)
@@ -163,7 +163,7 @@ export function DailyView() {
           <p className="font-mono text-xs text-primary">$ python review.py --today</p>
           <h1 className="text-2xl font-bold">每日错题 · 艾宾浩斯抗遗忘</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            到期优先、逾期越久越靠前；判对分三档，判错隔天回炉。做对 {ARCHIVE_STAGE} 次归档，池子不够 10 道时用「最久没碰的」补满。
+            到期优先、逾期越久越靠前；判对分三档，判错隔天回炉。做对 {ARCHIVE_STAGE} 次归档，池子不够 {DAILY_TARGET} 道时用「最久没碰的」补满。
           </p>
           {importMsg && (
             <p className="mt-2 font-mono text-xs text-primary">{importMsg}</p>
@@ -258,7 +258,7 @@ export function DailyView() {
           <p className="text-sm text-muted-foreground">
             {list.length === 0
               ? stats.dueToday > 0
-                ? '点右上角「再开 10 道」重新抽一批。'
+                ? `点右上角「再开 ${DAILY_TARGET} 道」重新抽一批。`
                 : '今天没有到期题，休息也是复习的一部分。'
               : `回写了 ${processed.size} 道。想加练就点右上角「再开 ${DAILY_TARGET} 道」。`}
           </p>
