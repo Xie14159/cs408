@@ -21,8 +21,12 @@ import { DifficultyBadge, SourceBadge, SubjectBadge, TopicBadge, YearBadge } fro
 import { getQuestion } from '@/data'
 import { useProgress, useUI } from '@/lib/store'
 import {
+  ARCHIVE_GOT_STREAK,
   ARCHIVE_STAGE,
   EBBINGHAUS_INTERVALS,
+  REST_DUE_WINDOW,
+  REST_MAX_FILL,
+  STUBBORN_DAILY_LIMIT,
   STUBBORN_THRESHOLD,
   addDays,
   dateKey,
@@ -163,7 +167,7 @@ export function DailyView() {
           <p className="font-mono text-xs text-primary">$ python review.py --today</p>
           <h1 className="text-2xl font-bold">每日错题 · 艾宾浩斯抗遗忘</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            到期优先、逾期越久越靠前；判对分三档，判错隔天回炉。做对 {ARCHIVE_STAGE} 次归档，池子不够 {DAILY_TARGET} 道时用「最久没碰的」补满。
+            到期优先、逾期越久越靠前；判对分三档，判错隔天回炉。走到第 {ARCHIVE_STAGE} 档、且连续 {ARCHIVE_GOT_STREAK} 次「一眼就会」才归档；池子不够 {DAILY_TARGET} 道时，只补 {REST_DUE_WINDOW} 天内到期的题，每天最多补 {REST_MAX_FILL} 道。
           </p>
           {importMsg && (
             <p className="mt-2 font-mono text-xs text-primary">{importMsg}</p>
@@ -233,9 +237,10 @@ export function DailyView() {
           </div>
         </div>
         <p className="mt-3 text-xs text-muted-foreground">
-          首次「一眼就会」→ 2 天后；连对 5 轮累计 2→4→7→15→30 天，第 6 次归档。「想了会儿」按同阶段
-          推进但只拿 70% 间隔；「看了解析」不推进、明天原样再来。任何一次做错，阶段回退一级（顽固题
-          直接归零），到期日一律拉回明天。
+          首次「一眼就会」→ 2 天后；连对累计 2→4→7 天走完 {ARCHIVE_STAGE} 档，且最后要连续{' '}
+          {ARCHIVE_GOT_STREAK} 次「一眼就会」才归档。「想了会儿」按同阶段推进但只拿 70% 间隔、不算连击；
+          「看了解析」不推进、明天原样再来。任何一次做错，阶段回退一级（顽固题直接归零）、连击清零，
+          到期日一律拉回明天。
         </p>
       </Card>
 

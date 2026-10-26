@@ -30,6 +30,18 @@ export const STUBBORN_THRESHOLD = 2
  */
 export const ARCHIVE_STAGE = 4
 
+/** 归档还要求「连续 N 次一眼就会」：挡住 `对→错→对→对→对` 这种轨迹被算成掌握 */
+export const ARCHIVE_GOT_STREAK = 2
+
+/** 补位锁 ①：只补「2 天内就要到期」的题，避免把还在间隔期里的题提前拉出来 */
+export const REST_DUE_WINDOW = 2
+
+/** 补位锁 ②：每天最多补几道 */
+export const REST_MAX_FILL = 4
+
+/** 顽固题每天最多占几个名额 */
+export const STUBBORN_DAILY_LIMIT = 3
+
 /** 错误类型对优先级的加成：方法不会最该先看，计算失误最不急 */
 export const TAG_PRIORITY: Record<string, number> = {
   方法不会: 20,
@@ -60,6 +72,8 @@ export interface WrongSched {
   active: boolean
   /** 由「导入已有错题」批量登记而来：不进新题池，只按到期日排队 */
   imported?: boolean
+  /** 连续「一眼就会」的次数：归档要求 ≥ ARCHIVE_GOT_STREAK；做错清零，「想了会儿」不增不减 */
+  gotStreak?: number
 }
 
 /* ------------------------------ 日期工具 ------------------------------ */
@@ -194,11 +208,12 @@ export interface SelectDailyArgs {
 }
 
 /**
- * 艾宾浩斯选题：到期优先 → 顽固题补足 → 新错题补足 → 最久没碰的补满。
+ * 艾宾浩斯选题：到期优先 → 顽固题补足 → 新错题补足 → **近期到期**的补满。
  *
  * 四个池互斥，选中集内不会重复，补足上限直接用参数。
- * 前三池填不满 target 时，从「未到期、也没被挑中」的题里按最后复习时间从早到晚补满，
- * 避免每日配额空转（408 池子只有几十道，到期数常常不足 10）。
+ * 前三池填不满 target 时才用 rest 补位，且有两道锁（REST_DUE_WINDOW / REST_MAX_FILL）：
+ * 补位题必须是「2 天内就要到期」的，每天最多补 4 道——否则会把一堆还在间隔期里的题
+ * 提前拉出来，等于把 4 天/7 天的间隔压缩成 1 天，间隔复习就失去意义了。
  */
 export function selectDailyWrong(args: SelectDailyArgs): string[] {
   const { sched } = args
@@ -206,9 +221,9 @@ export function selectDailyWrong(args: SelectDailyArgs): string[] {
   const target = args.target ?? 10
   const exclude = new Set(args.exclude ?? [])
   const topicOf = args.topicOf ?? (() => '')
-  // 阈值降到 2 之后顽固池会明显变大（导入的「不会」全在里面），每天 5 个名额
-  // 会把一半配额浪费在到期池之外，提到 10 让顽固题能真正轮转起来。
-  const maxStubborn = args.maxStubborn ?? 10
+  // 顽固题（错≥2）每天最多 3 道：它们要的是「诊断 + 重学」，不是每天重看一遍。
+  // 给多了会把到期的新题挤出去，池子就变成了「每天复习同一批不会的题」。
+  const maxStubborn = args.maxStubborn ?? STUBBORN_DAILY_LIMIT
   const t = toDay(today)
   if (t === null || target <= 0) return []
 
@@ -224,7 +239,7 @@ export function selectDailyWrong(args: SelectDailyArgs): string[] {
     if (d <= t) due.push(qid)
     else if (rec.wrongCount >= STUBBORN_THRESHOLD) stubborn.push(qid)
     else if (rec.stage === 0 && !rec.lastReviewedAt && !rec.imported) newbie.push(qid)
-    else rest.push(qid)
+    else if (d <= t + REST_DUE_WINDOW) rest.push(qid)
   }
 
   due.sort((a, b) => {
@@ -235,7 +250,8 @@ export function selectDailyWrong(args: SelectDailyArgs): string[] {
   })
   stubborn.sort((a, b) => sched[b].wrongCount - sched[a].wrongCount)
   newbie.sort((a, b) => (toDay(sched[a].addedAt) ?? t) - (toDay(sched[b].addedAt) ?? t))
-  // 「最久没碰」：上次复习越早越靠前（从没复习过的排最前），同分再让到期日近的先上
+  // 「最久没碰」只用来决定**补位顺序**：候选已经被 REST_DUE_WINDOW 限制在「2 天内到期」，
+  // 所以这里的排序不会再挑出刚复习过的题。
   rest.sort((a, b) => {
     const la = sched[a].lastReviewedAt || ''
     const lb = sched[b].lastReviewedAt || ''
@@ -271,10 +287,10 @@ export function selectDailyWrong(args: SelectDailyArgs): string[] {
     seen.add(qid)
   }
 
-  // ① 池子不闲置：还没到 10 道，就拿「最久没碰的」补满
+  // ② 池子不闲置，但补位有上限：每天最多补 REST_MAX_FILL 道，且只从「2 天内到期」里取
   for (const qid of rotateByTopic(
     rest,
-    target - selected.length,
+    Math.min(target - selected.length, REST_MAX_FILL),
     topicOf,
     new Set([...seen, ...exclude]),
   )) {
@@ -346,21 +362,33 @@ export type ReviewGrade = 'got' | 'slow' | 'peek' | 'wrong'
 export function applyReview(rec: WrongSched, grade: ReviewGrade, today: string): WrongSched {
   const t = toDay(today) ?? 0
 
-  // 看了解析才懂：不动阶段、不加错次，明天再来一次
+  // 看了解析才懂：不动阶段、不加错次、不动连击，明天再来一次
   if (grade === 'peek') {
     return { ...rec, active: true, nextReviewAt: fromDay(t + 1), lastReviewedAt: today }
   }
 
   if (grade === 'got' || grade === 'slow') {
+    // 「想了会儿」阶段照推，但不算连击——它说明还没真熟，不该用来凑归档条件
+    const gotStreak = grade === 'got' ? (rec.gotStreak ?? 0) + 1 : (rec.gotStreak ?? 0)
     const nextStage = rec.stage + 1
-    if (nextStage >= ARCHIVE_STAGE) {
-      return { ...rec, stage: ARCHIVE_STAGE, active: false, nextReviewAt: '', lastReviewedAt: today }
+    if (nextStage >= ARCHIVE_STAGE && gotStreak >= ARCHIVE_GOT_STREAK) {
+      return {
+        ...rec,
+        stage: ARCHIVE_STAGE,
+        gotStreak,
+        active: false,
+        nextReviewAt: '',
+        lastReviewedAt: today,
+      }
     }
-    const base = gapForStage(nextStage)
+    // 阶段到顶但连击还不够：停在最后一档继续磨，不能再往上推
+    const stage = Math.min(nextStage, ARCHIVE_STAGE - 1)
+    const base = gapForStage(stage)
     const gap = grade === 'slow' ? Math.max(SLOW_GAP_MIN, Math.round(base * SLOW_GAP_FACTOR)) : base
     return {
       ...rec,
-      stage: nextStage,
+      stage,
+      gotStreak,
       active: true,
       nextReviewAt: fromDay(t + gap),
       lastReviewedAt: today,
@@ -382,6 +410,8 @@ export function applyReview(rec: WrongSched, grade: ReviewGrade, today: string):
     ...rec,
     wrongCount,
     stage,
+    // 又错一次，连击清零：下一轮要重新连上 2 次才归档
+    gotStreak: 0,
     active,
     nextReviewAt: fromDay(t + 1),
     lastReviewedAt: today,
@@ -403,9 +433,11 @@ export function applyPostpone(rec: WrongSched, today: string, days = 1): WrongSc
 /** 按档位算「下一次复习推到几天后」；归档返回 null */
 export function nextGap(rec: WrongSched, grade: ReviewGrade): number | null {
   if (grade === 'peek' || grade === 'wrong') return 1
+  const gotStreak = grade === 'got' ? (rec.gotStreak ?? 0) + 1 : (rec.gotStreak ?? 0)
   const nextStage = rec.stage + 1
-  if (nextStage >= ARCHIVE_STAGE) return null
-  const base = gapForStage(nextStage)
+  if (nextStage >= ARCHIVE_STAGE && gotStreak >= ARCHIVE_GOT_STREAK) return null
+  const stage = Math.min(nextStage, ARCHIVE_STAGE - 1)
+  const base = gapForStage(stage)
   return grade === 'slow' ? Math.max(SLOW_GAP_MIN, Math.round(base * SLOW_GAP_FACTOR)) : base
 }
 
