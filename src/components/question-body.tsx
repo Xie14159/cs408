@@ -15,8 +15,8 @@ import { cn } from '@/lib/utils'
 
 interface QuestionBodyProps {
   q: Question
-  /** 练习模式：选择后立即判定并记录；复盘模式：直接展示答案 */
-  mode?: 'practice' | 'review'
+  /** 练习模式：选择后立即判定并记录；复盘模式：直接展示答案；浏览模式：只显示题干与选项，不判分也不给答案 */
+  mode?: 'practice' | 'review' | 'browse'
   /** 复盘模式：用户当时的选择 */
   reviewSelected?: string
   /** 练习模式下作答完成后的回调 */
@@ -48,11 +48,11 @@ export function QuestionBody({
     setSelfMarked(null)
   }, [q.id])
 
-  const answered = mode === 'review' ? true : selected !== null || externalSelected != null
+  const answered = mode === 'review' ? true : mode === 'browse' ? false : selected !== null || externalSelected != null
   const current = mode === 'review' ? reviewSelected ?? null : externalSelected ?? selected
 
   const pick = (letter: string) => {
-    if (mode === 'review' || selected !== null) return
+    if (mode === 'review' || mode === 'browse' || selected !== null) return
     setSelected(letter)
     const result = letter === q.answer ? 'correct' : 'wrong'
     submitAnswer(q.id, result)
@@ -83,12 +83,12 @@ export function QuestionBody({
                 role="option"
                 data-option={`${q.id}-${letter}`}
                 onClick={() => pick(letter)}
-                disabled={answered || mode === 'review'}
+                disabled={answered || mode === 'review' || mode === 'browse'}
                 aria-selected={isPicked}
                 className={cn(
                   'flex items-start gap-3 rounded-lg border p-3 text-left text-sm outline-none transition-all',
                   'hover:border-primary/50 hover:bg-accent/40 focus-visible:ring-2 focus-visible:ring-ring',
-                  (answered || mode === 'review') && 'cursor-default',
+                  (answered || mode === 'review' || mode === 'browse') && 'cursor-default',
                   !answered && mode === 'practice' && 'cursor-pointer',
                   showCorrect && 'border-emerald-500 bg-emerald-500/10',
                   showWrong && 'border-rose-500 bg-rose-500/10',

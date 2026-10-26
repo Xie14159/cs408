@@ -110,7 +110,15 @@ function WrongItem({ qid }: { qid: string }) {
           错 {rec?.wrong ?? 0} 次
         </span>
       </div>
-      <p className="line-clamp-2-safe text-sm text-foreground/85">{q.question}</p>
+      <div className="mt-1">
+        {open ? (
+          <div className="rounded-lg border bg-muted/30 p-4">
+            <QuestionBody q={q} mode="review" reviewSelected={undefined} />
+          </div>
+        ) : (
+          <QuestionBody q={q} mode="browse" />
+        )}
+      </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <Button
           size="sm"
@@ -118,7 +126,7 @@ function WrongItem({ qid }: { qid: string }) {
           className="h-7 gap-1 font-mono text-xs"
           onClick={() => setOpen((v) => !v)}
         >
-          {open ? '收起' : '展开'}
+          {open ? '收起' : '看答案'}
         </Button>
         <Button
           size="sm"
@@ -143,11 +151,6 @@ function WrongItem({ qid }: { qid: string }) {
           标记已掌握
         </Button>
       </div>
-      {open && (
-        <div className="mt-4 rounded-lg border bg-muted/30 p-4">
-          <QuestionBody q={q} mode="review" reviewSelected={undefined} />
-        </div>
-      )}
     </Card>
   )
 }

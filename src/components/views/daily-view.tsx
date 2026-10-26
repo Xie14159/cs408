@@ -358,7 +358,15 @@ function DailyItem({
         </span>
       </div>
 
-      <p className="line-clamp-2-safe text-sm text-foreground/85">{q.question}</p>
+      <div className="mt-1">
+        {open ? (
+          <div className="rounded-lg border bg-muted/30 p-4">
+            <QuestionBody q={q} mode="review" reviewSelected={undefined} />
+          </div>
+        ) : (
+          <QuestionBody q={q} mode="browse" />
+        )}
+      </div>
 
       {/* 阶段点 + 阶段文案 */}
       <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -389,7 +397,7 @@ function DailyItem({
           onClick={() => setOpen((v) => !v)}
         >
           {open ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-          {open ? '收起' : '展开'}
+          {open ? '收起' : '看答案'}
         </Button>
         <Button
           size="sm"
@@ -442,12 +450,6 @@ function DailyItem({
           入池 {rec.addedAt.slice(5)}
         </span>
       </div>
-
-      {open && (
-        <div className="mt-4 rounded-lg border bg-muted/30 p-4">
-          <QuestionBody q={q} mode="review" reviewSelected={undefined} />
-        </div>
-      )}
     </Card>
   )
 }
