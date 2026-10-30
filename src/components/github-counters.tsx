@@ -41,7 +41,11 @@ export function GithubCounters({ compact = false }: { compact?: boolean }) {
     }
 
     let cancelled = false
-    fetch(`https://api.github.com/repos/${GITHUB_REPO}`)
+    // 本机 github.com 可能被 DNS 劫持到黑洞地址，浏览器默认超时可达 60s+：
+    // 加 3s 超时主动中止，直接落到 FALLBACK，别让请求一直挂着。
+    const controller = new AbortController()
+    const timer = window.setTimeout(() => controller.abort(), 3000)
+    fetch(`https://api.github.com/repos/${GITHUB_REPO}`, { signal: controller.signal })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error('rate limit'))))
       .then((data) => {
         if (cancelled) return
@@ -65,6 +69,8 @@ export function GithubCounters({ compact = false }: { compact?: boolean }) {
       })
     return () => {
       cancelled = true
+      window.clearTimeout(timer)
+      controller.abort()
     }
   }, [])
 

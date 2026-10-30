@@ -1,7 +1,7 @@
 'use client'
 
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware'
 import type { SubjectCode } from '@/data/types'
 import { EXTERNAL_WRONG } from '@/data/external-wrong'
 import { ALL_MAP } from '@/data'
@@ -15,6 +15,61 @@ import {
   type ReviewGrade,
   type WrongSched,
 } from '@/lib/ebbinghaus'
+
+
+/* ---------------- 去抖的 persist 存储 ---------------- */
+/**
+ * zustand persist 每次 set 都会同步 JSON.stringify + localStorage.setItem，
+ * 答题时每题一次，数据越大主线程抖动越明显。这里把写入合并到 300ms 一次，
+ * 并在页面隐藏/卸载前同步 flush，保证不丢最后一次操作。
+ */
+function createDebouncedStorage(): StateStorage {
+  let pending: { name: string; value: string } | null = null
+  let timer: ReturnType<typeof setTimeout> | null = null
+  const flush = () => {
+    if (timer) {
+      clearTimeout(timer)
+      timer = null
+    }
+    if (!pending) return
+    try {
+      localStorage.setItem(pending.name, pending.value)
+    } catch {
+      /* 配额满或隐私模式：放弃这次写入，不影响内存状态 */
+    }
+    pending = null
+  }
+  if (typeof window !== 'undefined') {
+    window.addEventListener('pagehide', flush)
+    window.addEventListener('beforeunload', flush)
+  }
+  return {
+    getItem: (name) => {
+      if (typeof window === 'undefined') return null
+      if (pending && pending.name === name) return pending.value
+      try {
+        return localStorage.getItem(name)
+      } catch {
+        return null
+      }
+    },
+    setItem: (name, value) => {
+      if (typeof window === 'undefined') return
+      pending = { name, value }
+      if (timer) clearTimeout(timer)
+      timer = setTimeout(flush, 300)
+    },
+    removeItem: (name) => {
+      if (typeof window === 'undefined') return
+      if (pending && pending.name === name) pending = null
+      try {
+        localStorage.removeItem(name)
+      } catch {
+        /* ignore */
+      }
+    },
+  }
+}
 
 /* ---------------- 进度存储（localStorage 持久化） ---------------- */
 
@@ -332,6 +387,9 @@ export const useProgress = create<ProgressState>()(
         }),
     }),
     {
+      // 写 localStorage 去抖：连点「做对/又错」时只落盘一次，
+      // 但 pagehide 前强制 flush，避免丢最后一次进度。
+      storage: createJSONStorage(() => createDebouncedStorage()),
       name: '408lab-progress-v1',
       // 进度是本地唯一副本，加版本号 + 兜底迁移，避免将来字段改名时静默丢数据。
       // 升级规则：结构不兼容时才 bump version，并在 migrate 里显式转换。

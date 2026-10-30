@@ -34,6 +34,9 @@ export function WrongBookView() {
   })).filter((g) => g.items.length > 0)
 
   const [mode, setMode] = React.useState<'subject' | 'year'>('subject')
+  // 每科默认只渲染前 8 道：错题上百时，一次性铺开会把主线程占满（实测 61 道 = 2630 个 DOM 节点）
+  const [expanded, setExpanded] = React.useState<Record<string, boolean>>({})
+  const PAGE = 8
 
   // 真题套卷：按年份（= 那一套卷）分组，年份倒序，便于一年一年复盘
   const byYear = React.useMemo(() => {
@@ -122,10 +125,20 @@ export function WrongBookView() {
           </p>
         ) : (
           <div className="flex flex-col gap-3">
-            {items.map((qid) => (
+            {(expanded['year'] ? items : items.slice(0, PAGE)).map((qid) => (
               <WrongItem key={qid} qid={qid} />
             ))}
           </div>
+        )}
+        {items.length > PAGE && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full font-mono text-xs"
+            onClick={() => setExpanded((e) => ({ ...e, year: !e.year }))}
+          >
+            {expanded['year'] ? '收起' : `显示剩余 ${items.length - PAGE} 道`}
+          </Button>
         )}
       </div>
     )
@@ -181,10 +194,20 @@ export function WrongBookView() {
               <span className="font-mono text-xs text-muted-foreground">{items.length} 题</span>
             </div>
             <div className="flex flex-col gap-3">
-              {items.map((qid) => (
+              {(expanded[code] ? items : items.slice(0, PAGE)).map((qid) => (
                 <WrongItem key={qid} qid={qid} />
               ))}
             </div>
+            {items.length > PAGE && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-3 w-full font-mono text-xs"
+                onClick={() => setExpanded((e) => ({ ...e, [code]: !e[code] }))}
+              >
+                {expanded[code] ? '收起' : `显示剩余 ${items.length - PAGE} 道`}
+              </Button>
+            )}
           </section>
         ))}
 
@@ -214,7 +237,7 @@ export function WrongBookView() {
   )
 }
 
-function WrongItem({ qid }: { qid: string }) {
+const WrongItem = React.memo(function WrongItem({ qid }: { qid: string }) {
   const q = getQuestion(qid)
   const rec = useProgress((s) => s.records[qid])
   const startPractice = useUI((s) => s.startPractice)
@@ -280,4 +303,4 @@ function WrongItem({ qid }: { qid: string }) {
       </div>
     </Card>
   )
-}
+})
