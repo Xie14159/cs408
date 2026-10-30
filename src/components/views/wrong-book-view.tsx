@@ -255,7 +255,7 @@ const WrongItem = React.memo(function WrongItem({ qid }: { qid: string }) {
   const solved = rec ? rec.correct > 0 && rec.lastResult !== 'wrong' && rec.lastResult !== 'unmastered' : false
 
   return (
-    <Card className={cn('bg-card/90 p-4 transition-opacity', solved && 'opacity-60')}>
+    <Card className={cn('cv-auto bg-card/90 p-4 transition-opacity', solved && 'opacity-60')}>
       <div className="mb-2 flex flex-wrap items-center gap-1.5">
         <span className="font-mono text-xs text-muted-foreground/70">{q.id}</span>
         <YearBadge year={q.year} origin={q.origin} />

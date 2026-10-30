@@ -33,7 +33,7 @@ export function QuestionCard({ q, onOpen }: { q: Question; onOpen: (q: Question)
           onOpen(q)
         }
       }}
-      className="hover-raise group cursor-pointer border-border/80 bg-card/90 p-5 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="cv-auto hover-raise group cursor-pointer border-border/80 bg-card/90 p-5 outline-none focus-visible:ring-2 focus-visible:ring-ring"
       aria-label={`打开题目：${q.year > 0 ? `${q.year}年` : (q.origin ?? '精选题库')} ${q.topic} ${q.id}`}
     >
       <CardHeader className="flex flex-row flex-wrap items-center gap-1.5 space-y-0 p-0 pb-3">

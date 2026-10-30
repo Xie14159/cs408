@@ -233,7 +233,7 @@ export function DailyView() {
       </header>
 
       {/* ------------------------------ 记忆曲线 ------------------------------ */}
-      <Card className="bg-card/90 p-4">
+      <Card className="cv-auto bg-card/90 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" />
@@ -373,7 +373,7 @@ function DailyItem({
   const stubborn = rec.wrongCount >= STUBBORN_THRESHOLD
 
   return (
-    <Card className="bg-card/90 p-4">
+    <Card className="cv-auto bg-card/90 p-4">
       <div className="mb-2 flex flex-wrap items-center gap-1.5">
         <span className="font-mono text-[11px] text-muted-foreground/60">
           {String(index).padStart(2, '0')}

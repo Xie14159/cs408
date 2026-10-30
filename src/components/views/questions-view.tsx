@@ -132,7 +132,7 @@ export function QuestionsView() {
       </header>
 
       {/* 筛选栏 */}
-      <div className="flex flex-col gap-3 rounded-xl border bg-card/70 p-4 backdrop-blur">
+      <div className="flex flex-col gap-3 rounded-xl border bg-card/70 p-4">
         <div className="flex flex-wrap items-center gap-2">
           <span className="w-14 shrink-0 font-mono text-[11px] text-muted-foreground">科目</span>
           <Chip active={subject === 'all'} onClick={() => setSubject('all')}>全部</Chip>

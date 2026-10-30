@@ -129,8 +129,8 @@ export function CoverHero() {
       {/* ---------- 背景层（独立裁剪，不影响内容滚动） ---------- */}
       <div aria-hidden className="absolute inset-0 -z-10 overflow-hidden">
         <div className="dot-grid dark:dot-grid-dark absolute inset-0 [mask-image:radial-gradient(ellipse_65%_60%_at_50%_40%,black,transparent)]" />
-        <div className="float-slow absolute -left-24 top-8 h-72 w-72 rounded-full bg-emerald-500/20 blur-3xl dark:bg-emerald-500/25" />
-        <div className="float-slower absolute -right-24 bottom-24 h-80 w-80 rounded-full bg-teal-500/20 blur-3xl dark:bg-teal-400/20" />
+        <div className="float-slow absolute -left-24 top-8 h-72 w-72 rounded-full" style={{ background: "radial-gradient(circle at 50% 50%, rgba(16,185,129,0.30) 0%, rgba(16,185,129,0.14) 45%, rgba(16,185,129,0) 72%)" }} />
+        <div className="float-slower absolute -right-24 bottom-24 h-80 w-80 rounded-full" style={{ background: "radial-gradient(circle at 50% 50%, rgba(20,184,166,0.28) 0%, rgba(20,184,166,0.12) 45%, rgba(20,184,166,0) 72%)" }} />
       </div>
 
       {/* ---------- 开机自检（小屏只留末行摘要） ---------- */}
