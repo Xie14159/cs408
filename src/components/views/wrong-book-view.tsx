@@ -269,10 +269,10 @@ const WrongItem = React.memo(function WrongItem({ qid }: { qid: string }) {
       <div className="mt-1">
         {open ? (
           <div className="rounded-lg border bg-muted/30 p-4">
-            <QuestionBody q={q} mode="review" reviewSelected={undefined} />
+            <QuestionBody key={`r-${q.id}`} q={q} mode="review" reviewSelected={undefined} />
           </div>
         ) : (
-          <QuestionBody q={q} mode="browse" />
+          <QuestionBody key={`z-${q.id}`} q={q} mode="quiz" />
         )}
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">

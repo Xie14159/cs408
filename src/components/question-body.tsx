@@ -15,8 +15,8 @@ import { cn } from '@/lib/utils'
 
 interface QuestionBodyProps {
   q: Question
-  /** 练习模式：选择后立即判定并记录；复盘模式：直接展示答案；浏览模式：只显示题干与选项，不判分也不给答案 */
-  mode?: 'practice' | 'review' | 'browse'
+  /** 练习模式：选择后立即判定并记录；复盘模式：直接展示答案；浏览模式：只显示题干与选项，不判分也不给答案；自测模式：可点选项当场判对错，但不写记录 */
+  mode?: 'practice' | 'review' | 'browse' | 'quiz'
   /** 复盘模式：用户当时的选择 */
   reviewSelected?: string
   /** 练习模式下作答完成后的回调 */
@@ -48,15 +48,19 @@ export function QuestionBody({
     setSelfMarked(null)
   }, [q.id])
 
+  const practiceLike = mode === 'practice' || mode === 'quiz'
   const answered = mode === 'review' ? true : mode === 'browse' ? false : selected !== null || externalSelected != null
   const current = mode === 'review' ? reviewSelected ?? null : externalSelected ?? selected
 
   const pick = (letter: string) => {
     if (mode === 'review' || mode === 'browse' || selected !== null) return
     setSelected(letter)
-    const result = letter === q.answer ? 'correct' : 'wrong'
-    submitAnswer(q.id, result)
-    onAnswered?.(result)
+    // 自测模式只当场判对错，不写进做题记录（错题本复看时不该改动错次与复习阶段）
+    if (mode === 'practice') {
+      const result = letter === q.answer ? 'correct' : 'wrong'
+      submitAnswer(q.id, result)
+      onAnswered?.(result)
+    }
   }
 
   const correctLetter = q.type === 'single' ? q.answer : undefined
@@ -64,6 +68,12 @@ export function QuestionBody({
 
   return (
     <div className="flex flex-col gap-4">
+      {/* 自测模式下把判定结果播报给读屏器（视觉上的对错标记对 SR 不可见） */}
+      {mode === 'quiz' && selected !== null && (
+        <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+          {selected === correctLetter ? '回答正确' : '回答错误，正确答案是 ' + correctLetter}
+        </div>
+      )}
       {/* 题干 */}
       <RichText text={q.question} className="text-[15px] font-medium" />
       {q.code && <CodeBlock code={q.code.text} lang={q.code.lang} />}
@@ -89,7 +99,7 @@ export function QuestionBody({
                   'flex items-start gap-3 rounded-lg border p-3 text-left text-sm outline-none transition-all',
                   'hover:border-primary/50 hover:bg-accent/40 focus-visible:ring-2 focus-visible:ring-ring',
                   (answered || mode === 'review' || mode === 'browse') && 'cursor-default',
-                  !answered && mode === 'practice' && 'cursor-pointer',
+                  !answered && practiceLike && 'cursor-pointer',
                   showCorrect && 'border-emerald-500 bg-emerald-500/10',
                   showWrong && 'border-rose-500 bg-rose-500/10',
                   !showCorrect && !showWrong && 'border-border',
@@ -125,7 +135,7 @@ export function QuestionBody({
       )}
 
       {/* 综合题：查看参考答案 + 自评 */}
-      {q.type === 'application' && mode === 'practice' && !revealed && (
+      {q.type === 'application' && practiceLike && !revealed && (
         <Button
           type="button"
           variant="outline"
@@ -269,7 +279,7 @@ export function QuestionBody({
       )}
 
       {/* 练习模式下综合题自评后的解析 */}
-      {q.type === 'application' && mode === 'practice' && revealed && (
+      {q.type === 'application' && practiceLike && revealed && (
         <div className="rounded-lg border bg-muted/40 p-4">
           <p className="mb-1 font-mono text-xs font-semibold text-primary">✦ 解析</p>
           <RichText text={q.explanation} className="text-sm text-foreground/85" />
