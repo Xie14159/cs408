@@ -372,6 +372,8 @@ interface PracticeConfig {
 
 interface UIState {
   view: ViewId
+  /** 错题本的「按年份」子页：非 null 时错题本显示该年真题的独立页面 */
+  wrongYear: number | null
   /** 从首页/错题本点开的题目详情 */
   focusQid: string | null
   /** 预置的刷题会话（错题重练等） */
@@ -381,6 +383,7 @@ interface UIState {
   /** 题库视图的搜索预置（经验笔记考点跳转） */
   questionsKeyword: string | null
   setView: (v: ViewId) => void
+  openWrongYear: (year: number | null) => void
   openQuestion: (qid: string) => void
   setFocus: (qid: string | null) => void
   startPractice: (cfg: PracticeConfig) => void
@@ -393,11 +396,14 @@ interface UIState {
 
 export const useUI = create<UIState>((set, get) => ({
   view: 'home',
+  wrongYear: null,
   focusQid: null,
   practicePreset: null,
   questionsSubject: null,
   questionsKeyword: null,
   setView: (v) => set({ view: v, focusQid: null }),
+  openWrongYear: (year) =>
+    set(year === null ? { wrongYear: null } : { view: 'wrong', wrongYear: year, focusQid: null }),
   openQuestion: (qid) => set({ view: 'questions', focusQid: qid }),
   setFocus: (qid) => set({ focusQid: qid }),
   startPractice: (cfg) => set({ view: 'practice', practicePreset: cfg, focusQid: null }),

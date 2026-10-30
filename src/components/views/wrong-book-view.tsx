@@ -16,6 +16,8 @@ export function WrongBookView() {
   const records = useProgress((s) => s.records)
   const startPractice = useUI((s) => s.startPractice)
   const setView = useUI((s) => s.setView)
+  const wrongYear = useUI((s) => s.wrongYear)
+  const openWrongYear = useUI((s) => s.openWrongYear)
 
   const wrongQids = React.useMemo(
     () =>
@@ -45,6 +47,11 @@ export function WrongBookView() {
     return [...buckets.entries()].sort((a, b) => b[0] - a[0])
   }, [wrongQids])
 
+  // 进入/切换单年页时滚到顶部：view 仍是 'wrong'，外壳只在 view 变化时滚顶
+  React.useEffect(() => {
+    if (wrongYear !== null) window.scrollTo({ top: 0 })
+  }, [wrongYear])
+
   if (wrongQids.length === 0) {
     return (
       <div className="flex flex-col items-center gap-5 py-16 text-center">
@@ -64,6 +71,62 @@ export function WrongBookView() {
           <Target className="h-4 w-4" />
           去刷题
         </Button>
+      </div>
+    )
+  }
+
+  // ---------- 单年详情页（#wrong/YYYY）----------
+  if (wrongYear !== null) {
+    const items = byYear.find(([y]) => y === wrongYear)?.[1] ?? []
+    return (
+      <div className="flex flex-col gap-6">
+        <header className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <button
+              type="button"
+              onClick={() => {
+                window.history.pushState(null, '', '#wrong')
+                openWrongYear(null)
+              }}
+              className="font-mono text-xs text-muted-foreground underline-offset-4 hover:underline"
+            >
+              ← 返回错题本
+            </button>
+            <h1 className="mt-2 flex items-center gap-2 text-2xl font-bold">
+              <YearBadge year={wrongYear} />
+              {wrongYear > 0 ? `${wrongYear} 年真题错题` : '未标注年份错题'}
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              共 <b className="text-foreground tabular-nums">{items.length}</b> 道待巩固 · 只含这一套卷
+            </p>
+          </div>
+          {items.length > 0 && (
+            <Button
+              className="gap-2 font-semibold"
+              onClick={() =>
+                startPractice({
+                  qids: items,
+                  title: wrongYear > 0 ? `${wrongYear} 年真题错题` : '未标注年份错题',
+                })
+              }
+            >
+              <RefreshCw className="h-4 w-4" />
+              重练这一年
+            </Button>
+          )}
+        </header>
+
+        {items.length === 0 ? (
+          <p className="py-12 text-center text-sm text-muted-foreground">
+            这一年已经没有待巩固的错题了（重练答对后会自动移出）。
+          </p>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {items.map((qid) => (
+              <WrongItem key={qid} qid={qid} />
+            ))}
+          </div>
+        )}
       </div>
     )
   }
@@ -128,37 +191,22 @@ export function WrongBookView() {
       {mode === 'year' && (
         <div className="flex flex-col gap-3">
           {byYear.map(([year, items]) => (
-            <details key={year} className="rounded-lg border bg-card/40">
-              <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3">
-                <YearBadge year={year} />
-                <span className="text-sm font-medium">
-                  {year > 0 ? `${year} 年真题` : '未标注年份'}
-                </span>
-                <span className="font-mono text-xs text-muted-foreground">{items.length} 题</span>
-                <span className="ml-auto font-mono text-xs text-muted-foreground">展开 ›</span>
-              </summary>
-              <div className="flex flex-col gap-3 border-t p-3">
-                <div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="gap-1.5"
-                    onClick={() =>
-                      startPractice({
-                        qids: items,
-                        title: year > 0 ? `${year} 年真题错题` : '未标注年份错题',
-                      })
-                    }
-                  >
-                    <RefreshCw className="h-3.5 w-3.5" />
-                    重练这一年
-                  </Button>
-                </div>
-                {items.map((qid) => (
-                  <WrongItem key={qid} qid={qid} />
-                ))}
-              </div>
-            </details>
+            <button
+              key={year}
+              type="button"
+              onClick={() => {
+                window.history.pushState(null, '', `#wrong/${year}`)
+                openWrongYear(year)
+              }}
+              className="flex w-full items-center gap-3 rounded-lg border bg-card/40 px-4 py-3 text-left transition-colors hover:border-primary/50 hover:bg-card"
+            >
+              <YearBadge year={year} />
+              <span className="text-sm font-medium">
+                {year > 0 ? `${year} 年真题` : '未标注年份'}
+              </span>
+              <span className="font-mono text-xs text-muted-foreground">{items.length} 题</span>
+              <span className="ml-auto font-mono text-xs text-primary">进入 ›</span>
+            </button>
           ))}
         </div>
       )}

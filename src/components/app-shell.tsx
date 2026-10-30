@@ -66,7 +66,9 @@ const VIEW_TITLES: Record<ViewId, string> = {
 /** 单页应用外壳：hash 路由 + 页头页脚 + 顶部阅读进度条 */
 export function AppShell() {
   const view = useUI((s) => s.view)
+  const wrongYear = useUI((s) => s.wrongYear)
   const setView = useUI((s) => s.setView)
+  const openWrongYear = useUI((s) => s.openWrongYear)
   const [menuOpen, setMenuOpen] = React.useState(false)
 
   // 账号初始化 + 云同步桥（登录状态下进度变化防抖推送）
@@ -117,30 +119,51 @@ export function AppShell() {
     importExternalWrong()
   }, [externalImportedAt, importExternalWrong, bankStatus])
 
-  // hash <-> view 双向同步
+  // hash <-> view 双向同步（错题本支持 #wrong/<年份> 子页）
   React.useEffect(() => {
     const fromHash = () => {
       const h = window.location.hash.replace('#', '')
-      if (NAV.some((n) => n.id === h)) setView(h as ViewId)
+      const m = /^wrong\/(\d{4})$/.exec(h)
+      if (m) {
+        openWrongYear(Number(m[1]))
+        return
+      }
+      if (NAV.some((n) => n.id === h)) {
+        openWrongYear(null)
+        setView(h as ViewId)
+        return
+      }
+      // 非空但认不出来的片段（手改地址、旧链接）：回首页，别让地址栏和视图长期不一致
+      if (h) {
+        openWrongYear(null)
+        setView('home')
+      }
     }
     fromHash()
     window.addEventListener('hashchange', fromHash)
-    return () => window.removeEventListener('hashchange', fromHash)
-  }, [setView])
+    // 后退/前进时片段变化走的是 popstate，不监听就回不到列表
+    window.addEventListener('popstate', fromHash)
+    return () => {
+      window.removeEventListener('hashchange', fromHash)
+      window.removeEventListener('popstate', fromHash)
+    }
+  }, [setView, openWrongYear])
 
   const prevView = React.useRef(view)
   React.useEffect(() => {
+    const wantHash = view === 'wrong' && wrongYear !== null ? `#wrong/${wrongYear}` : `#${view}`
     if (prevView.current !== view) {
       window.scrollTo({ top: 0 })
-      if (window.location.hash !== `#${view}`) {
-        window.history.replaceState(null, '', `#${view}`)
-      }
       document.title = `408Lab · ${VIEW_TITLES[view]}`
       prevView.current = view
     }
-  }, [view])
+    if (window.location.hash !== wantHash) {
+      window.history.replaceState(null, '', wantHash)
+    }
+  }, [view, wrongYear])
 
   const go = (v: ViewId) => {
+    openWrongYear(null)
     setView(v)
     setMenuOpen(false)
   }
