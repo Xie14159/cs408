@@ -31,6 +31,20 @@ export function WrongBookView() {
     items: wrongQids.filter((qid) => QUESTION_MAP.get(qid)?.subject === code),
   })).filter((g) => g.items.length > 0)
 
+  const [mode, setMode] = React.useState<'subject' | 'year'>('subject')
+
+  // 真题套卷：按年份（= 那一套卷）分组，年份倒序，便于一年一年复盘
+  const byYear = React.useMemo(() => {
+    const buckets = new Map<number, string[]>()
+    for (const qid of wrongQids) {
+      const y = QUESTION_MAP.get(qid)?.year ?? 0
+      const list = buckets.get(y)
+      if (list) list.push(qid)
+      else buckets.set(y, [qid])
+    }
+    return [...buckets.entries()].sort((a, b) => b[0] - a[0])
+  }, [wrongQids])
+
   if (wrongQids.length === 0) {
     return (
       <div className="flex flex-col items-center gap-5 py-16 text-center">
@@ -70,19 +84,84 @@ export function WrongBookView() {
         </Button>
       </header>
 
-      {bySubject.map(({ code, items }) => (
-        <section key={code} aria-label={SUBJECTS[code].name}>
-          <div className="mb-3 flex items-center gap-2">
-            <SubjectBadge subject={code as SubjectCode} />
-            <span className="font-mono text-xs text-muted-foreground">{items.length} 题</span>
-          </div>
-          <div className="flex flex-col gap-3">
-            {items.map((qid) => (
-              <WrongItem key={qid} qid={qid} />
-            ))}
-          </div>
-        </section>
-      ))}
+      <div className="flex items-center gap-2" role="tablist" aria-label="错题分组方式">
+        <Button
+          size="sm"
+          variant={mode === 'subject' ? 'default' : 'outline'}
+          role="tab"
+          aria-selected={mode === 'subject'}
+          onClick={() => setMode('subject')}
+        >
+          按科目
+        </Button>
+        <Button
+          size="sm"
+          variant={mode === 'year' ? 'default' : 'outline'}
+          role="tab"
+          aria-selected={mode === 'year'}
+          onClick={() => setMode('year')}
+        >
+          真题套卷
+        </Button>
+        {mode === 'year' && (
+          <span className="font-mono text-xs text-muted-foreground">
+            {byYear.length} 套 · 点年份展开
+          </span>
+        )}
+      </div>
+
+      {mode === 'subject' &&
+        bySubject.map(({ code, items }) => (
+          <section key={code} aria-label={SUBJECTS[code].name}>
+            <div className="mb-3 flex items-center gap-2">
+              <SubjectBadge subject={code as SubjectCode} />
+              <span className="font-mono text-xs text-muted-foreground">{items.length} 题</span>
+            </div>
+            <div className="flex flex-col gap-3">
+              {items.map((qid) => (
+                <WrongItem key={qid} qid={qid} />
+              ))}
+            </div>
+          </section>
+        ))}
+
+      {mode === 'year' && (
+        <div className="flex flex-col gap-3">
+          {byYear.map(([year, items]) => (
+            <details key={year} className="rounded-lg border bg-card/40">
+              <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3">
+                <YearBadge year={year} />
+                <span className="text-sm font-medium">
+                  {year > 0 ? `${year} 年真题` : '未标注年份'}
+                </span>
+                <span className="font-mono text-xs text-muted-foreground">{items.length} 题</span>
+                <span className="ml-auto font-mono text-xs text-muted-foreground">展开 ›</span>
+              </summary>
+              <div className="flex flex-col gap-3 border-t p-3">
+                <div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5"
+                    onClick={() =>
+                      startPractice({
+                        qids: items,
+                        title: year > 0 ? `${year} 年真题错题` : '未标注年份错题',
+                      })
+                    }
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    重练这一年
+                  </Button>
+                </div>
+                {items.map((qid) => (
+                  <WrongItem key={qid} qid={qid} />
+                ))}
+              </div>
+            </details>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

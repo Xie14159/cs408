@@ -31,6 +31,7 @@ import {
   addDays,
   dateKey,
   dueDateOf,
+  dueDay,
   nextGap,
   selectDailyWrong,
   stageLabel,
@@ -87,6 +88,25 @@ export function DailyView() {
 
   const list = React.useMemo(() => assigned ?? [], [assigned])
   const pending = list.filter((qid) => !processed.has(qid))
+
+  // 本批是怎么凑出来的：到期 / 顽固 / 新题 / 补位。15 是上限不是配额，
+  // 补位被锁在「2 天内到期 + 每天 4 道」后，某些天就是凑不满。
+  const breakdown = React.useMemo(() => {
+    const t = toDay(today) ?? 0
+    let due = 0
+    let stubborn = 0
+    let fresh = 0
+    let fill = 0
+    for (const qid of list) {
+      const rec = sched[qid]
+      if (!rec) continue
+      if (dueDay(rec, t) <= t) due += 1
+      else if (rec.wrongCount >= STUBBORN_THRESHOLD) stubborn += 1
+      else if (rec.stage === 0 && !rec.lastReviewedAt && !rec.imported) fresh += 1
+      else fill += 1
+    }
+    return { due, stubborn, fresh, fill }
+  }, [list, sched, today])
 
   const stats = React.useMemo(() => {
     const t = toDay(today) ?? 0
@@ -169,6 +189,17 @@ export function DailyView() {
           <p className="mt-1 text-sm text-muted-foreground">
             到期优先、逾期越久越靠前；判对分三档，判错隔天回炉。走到第 {ARCHIVE_STAGE} 档、且连续 {ARCHIVE_GOT_STREAK} 次「一眼就会」才归档；池子不够 {DAILY_TARGET} 道时，只补 {REST_DUE_WINDOW} 天内到期的题，每天最多补 {REST_MAX_FILL} 道。
           </p>
+          {list.length > 0 && (
+            <p className="mt-1.5 font-mono text-xs text-muted-foreground">
+              本批 {list.length} 道 = 到期 {breakdown.due} + 顽固 {breakdown.stubborn}
+              {breakdown.fresh > 0 ? ` + 新题 ${breakdown.fresh}` : ''}
+              {breakdown.fill > 0 ? ` + 补位 ${breakdown.fill}` : ''}
+              <span className="ml-1 opacity-70">
+                （{DAILY_TARGET} 是上限；补位只补 {REST_DUE_WINDOW} 天内到期、每天最多{' '}
+                {REST_MAX_FILL} 道）
+              </span>
+            </p>
+          )}
           {importMsg && (
             <p className="mt-2 font-mono text-xs text-primary">{importMsg}</p>
           )}
