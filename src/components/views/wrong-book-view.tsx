@@ -28,10 +28,15 @@ export function WrongBookView() {
     [records],
   )
 
-  const bySubject = SUBJECT_ORDER.map((code) => ({
-    code,
-    items: wrongQids.filter((qid) => QUESTION_MAP.get(qid)?.subject === code),
-  })).filter((g) => g.items.length > 0)
+  // 只在「按科目」列表里用得到；进年份子页时不该为它再扫一遍
+  const bySubject = React.useMemo(
+    () =>
+      SUBJECT_ORDER.map((code) => ({
+        code,
+        items: wrongQids.filter((qid) => QUESTION_MAP.get(qid)?.subject === code),
+      })).filter((g) => g.items.length > 0),
+    [wrongQids],
+  )
 
   const [mode, setMode] = React.useState<'subject' | 'year'>('subject')
   // 每科默认只渲染前 8 道：错题上百时，一次性铺开会把主线程占满（实测 61 道 = 2630 个 DOM 节点）
@@ -219,7 +224,8 @@ export function WrongBookView() {
               type="button"
               onClick={() => {
                 window.history.pushState(null, '', `#wrong/${year}`)
-                openWrongYear(year)
+                // 年份页要铺一整页卡片，同样降级为可中断更新，点下去立刻有反应
+                React.startTransition(() => openWrongYear(year))
               }}
               className="flex w-full items-center gap-3 rounded-lg border bg-card/40 px-4 py-3 text-left transition-colors hover:border-primary/50 hover:bg-card"
             >

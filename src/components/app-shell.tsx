@@ -162,10 +162,14 @@ export function AppShell() {
     }
   }, [view, wrongYear])
 
+  // 切视图可能是一次几百项的重渲染（题库/错题本）。用 startTransition 把它降级为
+  // 「可中断的后台更新」：点击当帧就能响应，滚动/输入不会被这次渲染卡住。
   const go = (v: ViewId) => {
-    openWrongYear(null)
-    setView(v)
     setMenuOpen(false)
+    React.startTransition(() => {
+      openWrongYear(null)
+      setView(v)
+    })
   }
 
   return (
