@@ -259,16 +259,21 @@
     100% { box-shadow: 0 0 0 8px oklch(0.596 0.13 163 / 0); }
   }
 
-  /* 悬浮抬升卡片（article card） */
+  /* 悬浮抬升卡片（article card）
+     只用 transform + border-color：transform 走合成层、border-color 是轻量重绘，
+     不再对 box-shadow 做过渡——滚动时鼠标停在原地、卡片一张张掠过，
+     阴影过渡会连续触发大范围重绘，是长列表滚动发涩的主因之一。 */
   .hover-raise {
-    transition: transform 240ms cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 240ms ease, border-color 220ms ease;
+    transition: transform 120ms ease-out, border-color 150ms ease;
   }
-  .hover-raise:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 12px 32px -8px oklch(0.25 0.02 160 / 0.22);
-  }
-  .dark .hover-raise:hover {
-    box-shadow: 0 12px 32px -8px oklch(0 0 0 / 0.65), 0 0 0 1px oklch(0.772 0.15 165 / 0.28);
+  @media (hover: hover) {
+    .hover-raise:hover {
+      transform: translateY(-2px);
+      border-color: oklch(0.72 0.09 165 / 0.55);
+    }
+    .dark .hover-raise:hover {
+      border-color: oklch(0.772 0.15 165 / 0.32);
+    }
   }
 
   /* 长列表：离屏卡片跳过布局与绘制（滚动时显著省帧），固定估算高度避免滚动条跳动 */
