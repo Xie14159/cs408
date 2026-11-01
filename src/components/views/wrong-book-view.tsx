@@ -12,8 +12,13 @@ import type { SubjectCode } from '@/data/types'
 import { useProgress, useUI, isWrongEntry } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
-export function WrongBookView() {
-  const records = useProgress((s) => s.records)
+/** 题号（q-2009-36 → 36）；解析失败按 0 处理，不抛错也不打乱其他项 */
+function qNum(qid: string): number {
+  const n = Number(qid.split('-').pop())
+  return Number.isFinite(n) ? n : 0
+}
+
+export function WrongBookView() {  const records = useProgress((s) => s.records)
   const startPractice = useUI((s) => s.startPractice)
   const setView = useUI((s) => s.setView)
   const wrongYear = useUI((s) => s.wrongYear)
@@ -44,6 +49,7 @@ export function WrongBookView() {
   const PAGE = 8
 
   // 真题套卷：按年份（= 那一套卷）分组，年份倒序，便于一年一年复盘
+  // 组内按题号升序（q-2009-36 → 36），这样一年错题按 1、2、3… 顺序摆，重练顺序也一致
   const byYear = React.useMemo(() => {
     const buckets = new Map<number, string[]>()
     for (const qid of wrongQids) {
@@ -52,6 +58,7 @@ export function WrongBookView() {
       if (list) list.push(qid)
       else buckets.set(y, [qid])
     }
+    for (const list of buckets.values()) list.sort((a, b) => qNum(a) - qNum(b))
     return [...buckets.entries()].sort((a, b) => b[0] - a[0])
   }, [wrongQids])
 
