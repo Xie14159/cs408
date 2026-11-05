@@ -43,7 +43,7 @@ export function WrongBookView() {  const records = useProgress((s) => s.records)
     [wrongQids],
   )
 
-  const [mode, setMode] = React.useState<'subject' | 'year'>('subject')
+  const [mode, setMode] = React.useState<'subject' | 'year'>('year')
   // 每科默认只渲染前 8 道：错题上百时，一次性铺开会把主线程占满（实测 61 道 = 2630 个 DOM 节点）
   const [expanded, setExpanded] = React.useState<Record<string, boolean>>({})
   const PAGE = 8
