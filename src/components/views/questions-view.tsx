@@ -144,7 +144,7 @@ export function QuestionsView() {
         </div>
         <div className="flex items-center gap-2">
           <span className="w-14 shrink-0 font-mono text-[11px] text-muted-foreground">年份</span>
-          <div className="scrollbar-none flex flex-1 items-center gap-2 overflow-x-auto pb-0.5">
+          <div className="flex flex-1 flex-wrap items-center gap-2">
             <Chip
               active={year === 'all'}
               onClick={() => setYear('all')}

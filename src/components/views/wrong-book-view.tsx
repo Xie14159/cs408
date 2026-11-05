@@ -254,7 +254,7 @@ const WrongItem = React.memo(function WrongItem({ qid }: { qid: string }) {
   const q = getQuestion(qid)
   const rec = useProgress((s) => s.records[qid])
   const startPractice = useUI((s) => s.startPractice)
-  const submitAnswer = useProgress((s) => s.submitAnswer)
+  const resolveWrongFromBook = useProgress((s) => s.resolveWrongFromBook)
   const [open, setOpen] = React.useState(false)
   const [removed, setRemoved] = React.useState(false)
 
@@ -279,7 +279,16 @@ const WrongItem = React.memo(function WrongItem({ qid }: { qid: string }) {
             <QuestionBody key={`r-${q.id}`} q={q} mode="review" reviewSelected={undefined} />
           </div>
         ) : (
-          <QuestionBody key={`z-${q.id}`} q={q} mode="quiz" />
+          <QuestionBody
+            key={`z-${q.id}`}
+            q={q}
+            mode="practice"
+            onSubmit={(submitQid, correct) => {
+              resolveWrongFromBook(submitQid, correct)
+              // 做对了题目自然从错题本消失（lastResult=correct 使 isWrongEntry 返回 false）
+              if (correct) setRemoved(true)
+            }}
+          />
         )}
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -304,8 +313,8 @@ const WrongItem = React.memo(function WrongItem({ qid }: { qid: string }) {
           variant="ghost"
           className="h-7 gap-1 font-mono text-xs text-muted-foreground"
           onClick={() => {
-            // 标记已掌握：以“答对”覆盖最近结果
-            submitAnswer(qid, 'correct')
+            // 标记已掌握：推进记忆曲线 + 移出错题本
+            resolveWrongFromBook(qid, true)
             setRemoved(true)
           }}
           title="手动移出错题本"

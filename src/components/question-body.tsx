@@ -23,6 +23,8 @@ interface QuestionBodyProps {
   onAnswered?: (result: 'correct' | 'wrong') => void
   /** 外部受控选择（键盘操作时由父组件传入），单选题 */
   externalSelected?: string
+  /** 自定义提交处理器：传入后替代默认 submitAnswer/markApplication，用于错题本等需要自定义记忆曲线回写的场景 */
+  onSubmit?: (qid: string, correct: boolean) => void
 }
 
 const LETTER_CLASS = 'flex h-7 w-7 shrink-0 items-center justify-center rounded-md border font-mono text-sm font-semibold'
@@ -33,6 +35,7 @@ export function QuestionBody({
   reviewSelected,
   onAnswered,
   externalSelected,
+  onSubmit,
 }: QuestionBodyProps) {
   const submitAnswer = useProgress((s) => s.submitAnswer)
   const markApplication = useProgress((s) => s.markApplication)
@@ -58,7 +61,11 @@ export function QuestionBody({
     // 自测模式只当场判对错，不写进做题记录（错题本复看时不该改动错次与复习阶段）
     if (mode === 'practice') {
       const result = letter === q.answer ? 'correct' : 'wrong'
-      submitAnswer(q.id, result)
+      if (onSubmit) {
+        onSubmit(q.id, result === 'correct')
+      } else {
+        submitAnswer(q.id, result)
+      }
       onAnswered?.(result)
     }
   }
@@ -134,7 +141,7 @@ export function QuestionBody({
         </div>
       )}
 
-      {/* 综合题：查看参考答案 + 自评 */}
+      {/* 综合题：查看参考答案（practice模式下自评按钮常驻，不需要先看答案） */}
       {q.type === 'application' && practiceLike && !revealed && (
         <Button
           type="button"
@@ -147,46 +154,51 @@ export function QuestionBody({
         </Button>
       )}
 
-      {(q.type === 'application' && (revealed || mode === 'review')) && (
+      {/* practice模式下：自评按钮常驻，不依赖revealed */}
+      {q.type === 'application' && mode === 'practice' && !selfMarked && (
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">自评：</span>
+          <Button
+            type="button"
+            size="sm"
+            className="bg-emerald-600 hover:bg-emerald-700"
+            onClick={() => {
+              if (onSubmit) onSubmit(q.id, true)
+              else markApplication(q.id, true)
+              setSelfMarked('mastered')
+              onAnswered?.('correct')
+            }}
+          >
+            已掌握
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="destructive"
+            onClick={() => {
+              if (onSubmit) onSubmit(q.id, false)
+              else markApplication(q.id, false)
+              setSelfMarked('unmastered')
+              onAnswered?.('wrong')
+            }}
+          >
+            未掌握
+          </Button>
+        </div>
+      )}
+      {q.type === 'application' && mode === 'practice' && selfMarked && (
+        <p className="font-mono text-xs text-muted-foreground">
+          已记录：{selfMarked === 'mastered' ? '✓ 已掌握' : '✗ 已加入错题本'}
+        </p>
+      )}
+
+      {/* practice模式下revealed后展开答案区域；review模式直接展示答案 */}
+      {(q.type === 'application' && ((mode === 'practice' && revealed) || mode === 'review')) && (
         <div className="flex flex-col gap-3">
           <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
             <p className="mb-2 font-mono text-xs font-semibold text-primary">✦ 参考答案</p>
             <RichText text={q.answerText ?? ''} className="text-sm" />
           </div>
-          {mode === 'practice' && !selfMarked && (
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">对照答案自评：</span>
-              <Button
-                type="button"
-                size="sm"
-                className="bg-emerald-600 hover:bg-emerald-700"
-                onClick={() => {
-                  markApplication(q.id, true)
-                  setSelfMarked('mastered')
-                  onAnswered?.('correct')
-                }}
-              >
-                已掌握
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="destructive"
-                onClick={() => {
-                  markApplication(q.id, false)
-                  setSelfMarked('unmastered')
-                  onAnswered?.('wrong')
-                }}
-              >
-                未掌握
-              </Button>
-            </div>
-          )}
-          {selfMarked && (
-            <p className="font-mono text-xs text-muted-foreground">
-              已记录：{selfMarked === 'mastered' ? '✓ 已掌握' : '✗ 已加入错题本'}
-            </p>
-          )}
         </div>
       )}
 

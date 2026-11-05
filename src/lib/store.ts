@@ -123,6 +123,7 @@ interface ProgressState {
   externalImportedAt: string
   submitAnswer: (qid: string, result: 'correct' | 'wrong') => void
   markApplication: (qid: string, mastered: boolean) => void
+  resolveWrongFromBook: (qid: string, correct: boolean) => void
   addExam: (rec: Omit<ExamRecord, 'id' | 'ts'> & { id?: string }) => void
   updateExam: (id: string, patch: Partial<ExamRecord>) => void
   toggleFavorite: (qid: string) => void
@@ -227,6 +228,42 @@ export const useProgress = create<ProgressState>()(
             records: { ...s.records, [qid]: rec },
             sched: mastered ? s.sched : bumpSched(s.sched, qid, key),
             daily: { ...s.daily, [key]: (s.daily[key] ?? 0) + 1 },
+          }
+        }),
+      /**
+       * 错题本里做题后的统一回写：更新 records + 推进/回退艾宾浩斯记忆曲线 + 标记今日已处理。
+       * 与拼好卷 finish_daily_review 对齐：无论对错都算处理了这道错题。
+       * - correct=true：records.lastResult=correct（题目从错题本消失），sched stage+1
+       * - correct=false：records.lastResult=wrong，sched stage 回退/顽固归零，明天再来
+       * - 幂等：同一天同一题只推进一次 sched（records 仍计一次 attempt）
+       */
+      resolveWrongFromBook: (qid, correct) =>
+        set((s) => {
+          const prev = s.records[qid]
+          const rec: QRecord = {
+            attempts: (prev?.attempts ?? 0) + 1,
+            correct: (prev?.correct ?? 0) + (correct ? 1 : 0),
+            wrong: (prev?.wrong ?? 0) + (correct ? 0 : 1),
+            lastResult: correct ? 'correct' : 'wrong',
+            lastAt: Date.now(),
+          }
+          const today = todayKey()
+          let sched = s.sched
+          const existing = sched[qid]
+          if (existing) {
+            // 幂等：同一天不重复推进记忆曲线
+            if (!existing.lastReviewedAt || existing.lastReviewedAt.slice(0, 10) !== today) {
+              sched = { ...sched, [qid]: applyReview(existing, correct ? 'got' : 'wrong', today) }
+            }
+          } else if (!correct) {
+            // sched 里没有且做错了，兜底进池
+            sched = bumpSched(sched, qid, today)
+          }
+          return {
+            records: { ...s.records, [qid]: rec },
+            sched,
+            processedDaily: withProcessed(s.processedDaily, qid, today),
+            daily: { ...s.daily, [today]: (s.daily[today] ?? 0) + 1 },
           }
         }),
       addExam: (rec) =>
