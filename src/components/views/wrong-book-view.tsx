@@ -276,7 +276,16 @@ const WrongItem = React.memo(function WrongItem({ qid }: { qid: string }) {
       <div className="mt-1">
         {open ? (
           <div className="rounded-lg border bg-muted/30 p-4">
-            <QuestionBody key={`r-${q.id}`} q={q} mode="review" reviewSelected={undefined} />
+            <QuestionBody
+              key={`r-${q.id}`}
+              q={q}
+              mode="review"
+              reviewSelected={undefined}
+              onSubmit={(submitQid, correct) => {
+                resolveWrongFromBook(submitQid, correct)
+                if (correct) setRemoved(true)
+              }}
+            />
           </div>
         ) : (
           <QuestionBody

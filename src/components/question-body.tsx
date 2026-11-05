@@ -154,8 +154,8 @@ export function QuestionBody({
         </Button>
       )}
 
-      {/* practice模式下：自评按钮常驻，不依赖revealed */}
-      {q.type === 'application' && mode === 'practice' && !selfMarked && (
+      {/* practice/review模式下：自评按钮常驻，不依赖revealed */}
+      {q.type === 'application' && (mode === 'practice' || mode === 'review') && !selfMarked && (
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">自评：</span>
           <Button
@@ -186,7 +186,7 @@ export function QuestionBody({
           </Button>
         </div>
       )}
-      {q.type === 'application' && mode === 'practice' && selfMarked && (
+      {q.type === 'application' && (mode === 'practice' || mode === 'review') && selfMarked && (
         <p className="font-mono text-xs text-muted-foreground">
           已记录：{selfMarked === 'mastered' ? '✓ 已掌握' : '✗ 已加入错题本'}
         </p>
