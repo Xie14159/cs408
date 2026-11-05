@@ -58,7 +58,6 @@ export function QuestionBody({
   const pick = (letter: string) => {
     if (mode === 'review' || mode === 'browse' || selected !== null) return
     setSelected(letter)
-    // 自测模式只当场判对错，不写进做题记录（错题本复看时不该改动错次与复习阶段）
     if (mode === 'practice') {
       const result = letter === q.answer ? 'correct' : 'wrong'
       if (onSubmit) {
