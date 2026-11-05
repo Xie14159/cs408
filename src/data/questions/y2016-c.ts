@@ -10,7 +10,7 @@ export const y2016c: Question[] = [
     "type": "single",
     "topic": "线性表",
     "difficulty": 2,
-    "source": "adapted",
+    "source": "real",
     "score": 2,
     "question": "已知表头元素为 c 的单链表在内存中的存储状态如下表所示。现将 f 存放于 1014H 处并插入单链表，若 f 在逻辑上位于 a 和 e 之间，则 a,e,f 的 “链接地址” 依次是（ ）。",
     "options": [
@@ -50,7 +50,7 @@ export const y2016c: Question[] = [
     "type": "single",
     "topic": "数据结构综合",
     "difficulty": 2,
-    "source": "adapted",
+    "source": "real",
     "score": 2,
     "question": "设有下图所示的火车车轨，入口到出口之间有 n 条轨道，列车的行进方向均为从左至右，列车可驶入任意一条轨道。现有编号为 1-9 的 9 列列车，驶入的次序依次是 8, 4, 2, 5, 3, 9, 1, 6, 7。若期望驶出的次序依次为 1~9，则 n 至少是（ ）。",
     "options": [
@@ -110,7 +110,7 @@ export const y2016c: Question[] = [
     "type": "single",
     "topic": "数据结构综合",
     "difficulty": 2,
-    "source": "adapted",
+    "source": "real",
     "score": 2,
     "question": "下列选项中，不是下图深度优先搜索序列的是（）",
     "options": [
@@ -150,7 +150,7 @@ export const y2016c: Question[] = [
     "type": "single",
     "topic": "图",
     "difficulty": 2,
-    "source": "adapted",
+    "source": "real",
     "score": 2,
     "question": "使用迪杰斯特拉（Djkstra）算法求下图中从顶点 1 到其他各顶点的最短路径，依次得到的各最短路径的目标顶点是（ ）。",
     "options": [

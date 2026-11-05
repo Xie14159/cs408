@@ -230,7 +230,7 @@ export const y2013c: Question[] = [
     "type": "single",
     "topic": "指令系统",
     "difficulty": 2,
-    "source": "adapted",
+    "source": "real",
     "score": 2,
     "question": "某计算机主频为 1.2GHz，其指令分为 4 类，它们在基准程序中所占比例及 CPI 如下表所示。\n\n指令类型 | 所占比例 | CPI\nA | 50% | 2\nB | 20% | 3\nC | 10% | 4\nD | 20% | 5\n\n该机的 MIPS 数是（ ）。",
     "options": [
@@ -310,7 +310,7 @@ export const y2013c: Question[] = [
     "type": "single",
     "topic": "存储系统",
     "difficulty": 2,
-    "source": "adapted",
+    "source": "real",
     "score": 2,
     "question": "某计算机主存地址空间大小为 256MB，按字节编址。虚拟地址空间大小为 4GB，采用页式存储管理，页面大小为 4KB，TLB（快表）采用全相联映射，有 4 个页表项，内容如下表所示。\n\n有效位 | 标记 | 页框号 | …\n0 | FF180H | 0002H | …\n1 | 3FFF1H | 0035H | …\n0 | 02FF3H | 0351H | …\n1 | 03FFFH | 0153H | …\n\n则对虚拟地址 03FFF180H 进行虚实地址变换的结果是（ ）。",
     "options": [
@@ -530,7 +530,7 @@ export const y2013c: Question[] = [
     "type": "single",
     "topic": "输入输出系统",
     "difficulty": 2,
-    "source": "adapted",
+    "source": "real",
     "score": 2,
     "question": "设系统缓冲区和用户工作区均采用单缓冲，从外设读入 1 个数据块到系统缓冲区的时间为 100，从系统缓冲区读入 1 个数据块到用户工作区的时间为 5，对用户工作区中的 1 个数据块进行分析的时间为 90（如下图所示）。\n\n进程从外设读入并分析 2 个数据块的最短时间是（ ）。",
     "options": [
@@ -610,7 +610,7 @@ export const y2013c: Question[] = [
     "type": "single",
     "topic": "输入输出系统",
     "difficulty": 2,
-    "source": "adapted",
+    "source": "real",
     "score": 2,
     "question": "某系统正在执行三个进程\nP1\n、\nP2\n和\nP3\n，各进程的计算 (CPU) 时间和 I/O 时间比例如下表所示。\n\n进程 | 计算时间 | I/O 时间\nP1 | 90% | 10%\nP2 | 50% | 50%\nP3 | 15% | 85%\n\n为提高系统资源利用率，合理的进程优先级设置应为（ ）。",
     "options": [
@@ -670,7 +670,7 @@ export const y2013c: Question[] = [
     "type": "single",
     "topic": "网络综合",
     "difficulty": 2,
-    "source": "adapted",
+    "source": "real",
     "score": 2,
     "question": "若下图为 10 BaseT 网卡接收到的信号波形，则该网卡收到的比特串是（ ）。",
     "options": [

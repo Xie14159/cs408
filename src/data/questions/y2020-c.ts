@@ -534,7 +534,7 @@ export const y2020c: Question[] = [
     "type": "single",
     "topic": "进程与线程",
     "difficulty": 2,
-    "source": "adapted",
+    "source": "real",
     "score": 2,
     "question": "某系统中有 A、B 两类资源各 6 个，t 时刻资源分配及需求情况如下表所示。\n\n进程 | A 已分配数量 | B 已分配数量 | A 需求总量 | B 需求总量\nP1 | 2 | 3 | 4 | 4\nP2 | 2 | 1 | 3 | 1\nP3 | 1 | 2 | 3 | 4\n\nt 时刻安全性检测结果是（ ）。",
     "options": [
@@ -654,7 +654,7 @@ export const y2020c: Question[] = [
     "type": "single",
     "topic": "网络综合",
     "difficulty": 2,
-    "source": "adapted",
+    "source": "real",
     "score": 2,
     "question": "下图描述的协议要素是 ( )。\n\nⅠ、语法；Ⅱ、语义；Ⅲ、时序",
     "options": [
@@ -694,7 +694,7 @@ export const y2020c: Question[] = [
     "type": "single",
     "topic": "数据链路层",
     "difficulty": 2,
-    "source": "adapted",
+    "source": "real",
     "score": 2,
     "question": "下图所示的网络冲突域和广播域的个数分别是（ ）。\n\n以太网交换机\n\n100 BastT 集线器",
     "options": [
@@ -734,7 +734,7 @@ export const y2020c: Question[] = [
     "type": "single",
     "topic": "数据链路层",
     "difficulty": 2,
-    "source": "adapted",
+    "source": "real",
     "score": 2,
     "question": "某 IEEE 802.11 无线局域网中主机 H 与 AP 之间发送或接收 CSMA/CA 帧的过程如下图所示，在 H 或 AP 发送帧前所等待的帧间间隔时间（IFS）中最长的是（ ）。",
     "options": [
@@ -794,7 +794,7 @@ export const y2020c: Question[] = [
     "type": "single",
     "topic": "物理层",
     "difficulty": 2,
-    "source": "adapted",
+    "source": "real",
     "score": 2,
     "question": "假设下图所示网络中的本地域名服务器只提供递归查询服务，其他域名的服务器均只提供迭代查询服务；局域网内主机访问 Internet 上各服务器的往返时间（RTT）均为 10ms，忽略其他各种时延，若主机 H 通过超链接 http://www.abc.com/index.html，请求浏览纯文本 Web 页 index.html，则从点击 超链接开始到浏览器接收到 index.html 页面为止，所需最短、最长时间分别是：\n\n本地域名服务器\n\n局域网\n\nH\n\nwww.abc.com\n\nInternet\n\ncom 顶级域名服务器\n\n根域名服务器\n\nabc.com域名服务器",
     "options": [

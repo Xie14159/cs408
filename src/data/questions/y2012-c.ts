@@ -174,7 +174,7 @@ export const y2012c: Question[] = [
     "type": "single",
     "topic": "数据结构综合",
     "difficulty": 2,
-    "source": "adapted",
+    "source": "real",
     "score": 2,
     "question": "已知一棵 3 阶 B 树，如下图所示。删除关键字 78 得到一棵新 B 树，其最右叶结点中的关键字是（）。",
     "options": [
@@ -802,7 +802,7 @@ export const y2012c: Question[] = [
     "type": "single",
     "topic": "网络综合",
     "difficulty": 2,
-    "source": "adapted",
+    "source": "real",
     "score": 2,
     "question": "若用户 1 与用户 2 之间发送和接收电子邮件的过程如下图所示，则图中 ①、②、③ 阶段分别使用的应用层协议可以是\n\n用户2\n\n用户1的邮件服务器\n\n用户2的邮件服务器\n\n①\n\n②\n\n③",
     "options": [

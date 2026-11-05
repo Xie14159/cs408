@@ -154,7 +154,7 @@ export const y2011c: Question[] = [
     "type": "single",
     "topic": "图",
     "difficulty": 2,
-    "source": "adapted",
+    "source": "real",
     "score": 2,
     "question": "下列关于图的叙述中，正确的是（ ）。\n\nI. 回路是简单路径\n\nII. 存储稀疏图，用邻接矩阵比邻接表更省空间\n\nIII. 若有向图中存在拓扑序列，则该图不存在回路",
     "options": [
@@ -534,7 +534,7 @@ export const y2011c: Question[] = [
     "type": "single",
     "topic": "进程与线程",
     "difficulty": 2,
-    "source": "adapted",
+    "source": "real",
     "score": 2,
     "question": "某时刻进程的资源使用情况如下表所示。\n\n此时的安全序列是（ ）。",
     "options": [
@@ -734,7 +734,7 @@ export const y2011c: Question[] = [
     "type": "single",
     "topic": "网络层",
     "difficulty": 2,
-    "source": "adapted",
+    "source": "real",
     "score": 2,
     "question": "某网络拓扑如下图所示，路由器 R1 只有到达子网 192.168.1.0/24 的路由。为使 R1 可以将 IP 分组正确地路由到图中所有子网，则在 R1 中需要增加的一条路由（目的网络，子网掩码，下一跳）是（ ）。",
     "options": [

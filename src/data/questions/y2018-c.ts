@@ -470,7 +470,7 @@ export const y2018c: Question[] = [
     "type": "single",
     "topic": "栈与队列",
     "difficulty": 2,
-    "source": "adapted",
+    "source": "real",
     "score": 2,
     "question": "某系统采用基于优先权的非抢占式进程调度策略，完成一次进程调度和进程切换的系统时间开销为 1us。在 T 时刻就绪队列中有 3 个进程 P1、P2 和 P3，其在就绪队列中的等待时间、需要的 CPU 时间和优先权如下表所示。若优先权值大的进程优先获得 CPU，从 T 时刻起系统开始进程调度，则系统的平均周转时间为（）。\n\n进程 | 等待时间 | 需要的 CPU 时间 | 优先级\nP1 | 30us | 12us | 10\nP2 | 15us | 24us | 30\nP3 | 18us | 36us | 20",
     "options": [
@@ -734,7 +734,7 @@ export const y2018c: Question[] = [
     "type": "single",
     "topic": "数据链路层",
     "difficulty": 2,
-    "source": "adapted",
+    "source": "real",
     "score": 2,
     "question": "路由器 R 通过以太网交换机 S1 和 S2 连接两个网络，R 的接口、主机 H1 和 H2 的 IP 地址与 MAC 地址如下图所示。若 H1 向 H2 发送一个 IP 分组 P，则 H1 发出的封装 P 的以太网帧的目的 MAC 地址、H2 收到的封装 P 的以太网帧的源 MAC 地址分别是（ ）。",
     "options": [

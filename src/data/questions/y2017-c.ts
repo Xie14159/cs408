@@ -94,7 +94,7 @@ export const y2017c: Question[] = [
     "type": "single",
     "topic": "树与二叉树",
     "difficulty": 2,
-    "source": "adapted",
+    "source": "real",
     "score": 2,
     "question": "已知一颗二叉树的树形如下图所示，其后序序列为 e，a，c，b，d，g，f，树中与结点 a 同层的结点是（）",
     "options": [
@@ -458,7 +458,7 @@ export const y2017c: Question[] = [
     "type": "single",
     "topic": "处理机调度",
     "difficulty": 2,
-    "source": "adapted",
+    "source": "real",
     "score": 2,
     "question": "假设 4 个作业到达系统的时刻和运行时间如下表所示。\n\n作业 | 达到时刻 t | 运行时间\nJ1 | 0 | 3\nJ2 | 1 | 3\nJ3 | 1 | 2\nJ4 | 3 | 1\n\n系统在 t=2 时开始作业调度。若分别采用先来先服务和短作业优先调度算法，则选中的作业分别是（ ）。",
     "options": [
@@ -498,7 +498,7 @@ export const y2017c: Question[] = [
     "type": "single",
     "topic": "内存管理",
     "difficulty": 2,
-    "source": "adapted",
+    "source": "real",
     "score": 2,
     "question": "某计算机按字节编址，其动态分区内存管理采用最佳适应算法，每次分配和回收内存后都对空闲分区链重新排序。当前空闲分区信息如下表所示。\n\n分区起始地址 | 20K | 500K | 1000K | 200K\n分区大小 | 40KB | 80KB | 100KB | 200KB\n\n回收起始地址为 60K、大小为 140KB 的分区后，系统中空闲分区的数量、空闲分区链第一个分区的起始地址和大小分别是（ ）。",
     "options": [
@@ -698,7 +698,7 @@ export const y2017c: Question[] = [
     "type": "single",
     "topic": "网络综合",
     "difficulty": 2,
-    "source": "adapted",
+    "source": "real",
     "score": 2,
     "question": "在下图所示的网络中，若主机 H 发送一个封装访问 Internet 的 IP 分组的 IEEE 802.11 数据帧 F，则帧 F 的地址 1、地址 2 和地址 3 分别是（ ）。",
     "options": [

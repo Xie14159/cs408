@@ -94,7 +94,7 @@ export const y2019c: Question[] = [
     "type": "single",
     "topic": "图",
     "difficulty": 2,
-    "source": "adapted",
+    "source": "real",
     "score": 2,
     "question": "下图所示的 AOE 网表示一项包含 8 个活动的工程。活动 d 的最早开始时间和最迟开始时间分别是（ ）。",
     "options": [
@@ -758,7 +758,7 @@ export const y2019c: Question[] = [
     "type": "single",
     "topic": "传输层",
     "difficulty": 2,
-    "source": "adapted",
+    "source": "real",
     "score": 2,
     "question": "某客户通过一个 TCP 连接向服务器发送数据的部分过程如题 38 图所示。客户在\nt0\n时刻第一次收到确认序列号 ack_seq=100 的段，并发送序列号 seq=100 的段，但发生丢失。若 TCP 支持快速重传，则客户重新发送 seq=100 段的时刻是（ ）。",
     "options": [
