@@ -259,11 +259,13 @@ export const useProgress = create<ProgressState>()(
             // sched 里没有且做错了，兜底进池
             sched = bumpSched(sched, qid, today)
           }
+          // daily去重：同一天同一题只计一次
+          const alreadyProcessed = (s.processedDaily[today] ?? []).includes(qid)
           return {
             records: { ...s.records, [qid]: rec },
             sched,
             processedDaily: withProcessed(s.processedDaily, qid, today),
-            daily: { ...s.daily, [today]: (s.daily[today] ?? 0) + 1 },
+            daily: { ...s.daily, [today]: (s.daily[today] ?? 0) + (alreadyProcessed ? 0 : 1) },
           }
         }),
       addExam: (rec) =>

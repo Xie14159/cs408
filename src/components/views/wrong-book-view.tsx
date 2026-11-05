@@ -283,7 +283,6 @@ const WrongItem = React.memo(function WrongItem({ qid }: { qid: string }) {
               reviewSelected={undefined}
               onSubmit={(submitQid, correct) => {
                 resolveWrongFromBook(submitQid, correct)
-                if (correct) setRemoved(true)
               }}
             />
           </div>
@@ -294,8 +293,7 @@ const WrongItem = React.memo(function WrongItem({ qid }: { qid: string }) {
             mode="practice"
             onSubmit={(submitQid, correct) => {
               resolveWrongFromBook(submitQid, correct)
-              // 做对了题目自然从错题本消失（lastResult=correct 使 isWrongEntry 返回 false）
-              if (correct) setRemoved(true)
+              // 做对了原地变绿（solved状态opacity-60），不立即消失，让用户看解析
             }}
           />
         )}
