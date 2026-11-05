@@ -257,12 +257,15 @@ const WrongItem = React.memo(function WrongItem({ qid }: { qid: string }) {
   const resolveWrongFromBook = useProgress((s) => s.resolveWrongFromBook)
   const [open, setOpen] = React.useState(false)
   const [removed, setRemoved] = React.useState(false)
+  const [justSolved, setJustSolved] = React.useState(false)
 
   if (!q || removed) return null
-  const solved = rec ? rec.correct > 0 && rec.lastResult !== 'wrong' && rec.lastResult !== 'unmastered' : false
 
   return (
-    <Card className={cn('cv-auto bg-card/90 p-4 transition-opacity', solved && 'opacity-60')}>
+    <Card className={cn('cv-auto bg-card/90 p-4 transition-opacity', justSolved && 'opacity-60 border-emerald-500/50')}>
+      {justSolved && (
+        <p className="mb-2 font-mono text-xs text-emerald-600">✓ 已做对，记忆曲线已推进</p>
+      )}
       <div className="mb-2 flex flex-wrap items-center gap-1.5">
         <span className="font-mono text-xs text-muted-foreground/70">{q.id}</span>
         <YearBadge year={q.year} origin={q.origin} />
@@ -283,6 +286,7 @@ const WrongItem = React.memo(function WrongItem({ qid }: { qid: string }) {
               reviewSelected={undefined}
               onSubmit={(submitQid, correct) => {
                 resolveWrongFromBook(submitQid, correct)
+                if (correct) setJustSolved(true)
               }}
             />
           </div>
@@ -293,7 +297,7 @@ const WrongItem = React.memo(function WrongItem({ qid }: { qid: string }) {
             mode="practice"
             onSubmit={(submitQid, correct) => {
               resolveWrongFromBook(submitQid, correct)
-              // 做对了原地变绿（solved状态opacity-60），不立即消失，让用户看解析
+              if (correct) setJustSolved(true)
             }}
           />
         )}

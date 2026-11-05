@@ -240,11 +240,13 @@ export const useProgress = create<ProgressState>()(
       resolveWrongFromBook: (qid, correct) =>
         set((s) => {
           const prev = s.records[qid]
+          // 做对时不改lastResult（保持wrong/unmastered），题目留在错题本里看解析
+          // 只有做错了才更新lastResult='wrong'
           const rec: QRecord = {
             attempts: (prev?.attempts ?? 0) + 1,
             correct: (prev?.correct ?? 0) + (correct ? 1 : 0),
             wrong: (prev?.wrong ?? 0) + (correct ? 0 : 1),
-            lastResult: correct ? 'correct' : 'wrong',
+            lastResult: correct ? (prev?.lastResult ?? 'wrong') : 'wrong',
             lastAt: Date.now(),
           }
           const today = todayKey()
