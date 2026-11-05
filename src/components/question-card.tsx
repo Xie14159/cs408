@@ -75,13 +75,15 @@ export function QuestionCard({ q, onOpen }: { q: Question; onOpen: (q: Question)
             <span
               className={cn(
                 'font-mono text-[11px]',
-                rec.lastResult === 'correct' || rec.lastResult === 'mastered'
+                rec.lastResult === 'mastered'
                   ? 'text-emerald-600 dark:text-emerald-400'
+                  : rec.lastResult === 'correct'
+                  ? 'text-amber-600 dark:text-amber-400'
                   : 'text-rose-600 dark:text-rose-400',
               )}
               title={`已练 ${rec.attempts} 次`}
             >
-              {rec.lastResult === 'correct' || rec.lastResult === 'mastered' ? '✓ 已攻克' : '✗ 待巩固'}
+              {rec.lastResult === 'mastered' ? '✓ 已攻克' : rec.lastResult === 'correct' ? '✓ 本次做对' : '✗ 待巩固'}
             </span>
           ) : (
             <span className="font-mono text-[11px] text-muted-foreground/50">未练习</span>
