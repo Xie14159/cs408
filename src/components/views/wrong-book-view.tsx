@@ -19,6 +19,7 @@ function qNum(qid: string): number {
 }
 
 export function WrongBookView() {  const records = useProgress((s) => s.records)
+  const sched = useProgress((s) => s.sched)
   const startPractice = useUI((s) => s.startPractice)
   const setView = useUI((s) => s.setView)
   const wrongYear = useUI((s) => s.wrongYear)
@@ -63,40 +64,63 @@ export function WrongBookView() {  const records = useProgress((s) => s.records)
   }, [wrongQids])
 
   /**
-   * 导出错题 JSON：把错题连同科目/章节/考点/题干摘要一起落成文件。
+   * 导出错题 JSON：把**所有做错过的题**（含已归档掌握）连同科目/章节/考点/调度一起落成文件。
    * 进度只存在浏览器 localStorage，导不出来就没法做跨设备分析或备份。
+   * 注意：导出范围是全部做错过的题，不只是当前「待巩固」列表——已掌握的也要留档，
+   * 否则备份是残缺的，也看不出「错过又掌握」的比例。
    */
   const exportWrong = React.useCallback(() => {
     const now = new Date()
     const pad = (n: number) => String(n).padStart(2, '0')
     const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`
-    const items = wrongQids.map((qid) => {
-      const q = QUESTION_MAP.get(qid)
-      const r = records[qid]
-      return {
-        qid,
-        year: q?.year ?? 0,
-        number: q?.number ?? 0,
-        subject: q?.subject ?? '',
-        subjectName: q ? SUBJECTS[q.subject].name : '',
-        type: q?.type ?? '',
-        topic: q?.topic ?? '',
-        difficulty: q?.difficulty ?? '',
-        score: q?.score ?? 0,
-        wrong: r?.wrong ?? 0,
-        correct: r?.correct ?? 0,
-        attempts: r?.attempts ?? 0,
-        lastResult: r?.lastResult ?? '',
-        lastAt: r?.lastAt ?? 0,
-        answer: q?.answer ?? '',
-        stem: (q?.question ?? '').replace(/\s+/g, ' ').slice(0, 160),
-      }
-    })
+    let pending = 0
+    let mastered = 0
+    const items = Object.entries(records)
+      .filter(([, r]) => (r?.wrong ?? 0) > 0)
+      .sort((a, b) => b[1].lastAt - a[1].lastAt)
+      .map(([qid, r]) => {
+        const q = QUESTION_MAP.get(qid)
+        const sc = sched[qid]
+        const still = isWrongEntry(r)
+        if (still) pending++
+        else mastered++
+        return {
+          qid,
+          status: still ? '待巩固' : '已掌握',
+          year: q?.year ?? 0,
+          number: q?.number ?? 0,
+          subject: q?.subject ?? '',
+          subjectName: q ? SUBJECTS[q.subject]?.name ?? q.subject : '',
+          type: q?.type ?? '',
+          topic: q?.topic ?? '',
+          difficulty: q?.difficulty ?? '',
+          score: q?.score ?? 0,
+          wrong: r.wrong,
+          correct: r.correct,
+          attempts: r.attempts,
+          lastResult: r.lastResult,
+          lastAt: r.lastAt,
+          // 同时给一个可读的 ISO 串：lastAt 是毫秒戳，跨时区看会歧义
+          lastAtISO: new Date(r.lastAt).toISOString(),
+          answer: q?.answer ?? '',
+          // 调度信息：没有它就看不出「什么时候该复习」「在第几轮」
+          stage: sc?.stage ?? null,
+          nextReviewAt: sc?.nextReviewAt ?? '',
+          lastReviewedAt: sc?.lastReviewedAt ?? '',
+          errorTag: sc?.errorTag ?? '',
+          active: sc?.active ?? null,
+          // 备份要能独立使用：保留完整题干与解析，不只摘 160 字
+          question: q?.question ?? '',
+          answerText: (q?.answerText ?? '').slice(0, 4000),
+          stem: (q?.question ?? '').replace(/\s+/g, ' ').slice(0, 160),
+        }
+      })
     const payload = {
       app: '408Lab',
-      version: 1,
+      version: 2,
       exportedAt: now.toISOString(),
-      count: items.length,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      summary: { total: items.length, pending, mastered },
       items,
     }
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
@@ -108,7 +132,7 @@ export function WrongBookView() {  const records = useProgress((s) => s.records)
     a.click()
     a.remove()
     window.setTimeout(() => URL.revokeObjectURL(url), 1000)
-  }, [wrongQids, records])
+  }, [records, sched])
 
   // 进入/切换单年页时滚到顶部：view 仍是 'wrong'，外壳只在 view 变化时滚顶
   React.useEffect(() => {
@@ -219,7 +243,7 @@ export function WrongBookView() {  const records = useProgress((s) => s.records)
             variant="outline"
             className="gap-2"
             onClick={exportWrong}
-            title="导出当前错题（含科目/章节/考点/题干摘要），用于备份或交给 AI 分析"
+            title="导出全部做错过的题（含已标记『已掌握』的），带科目/考点/调度/完整题干与解析；用于备份或交给 AI 分析"
           >
             <Download className="h-4 w-4" />
             导出错题 JSON
