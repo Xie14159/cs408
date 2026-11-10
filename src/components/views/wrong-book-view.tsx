@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { BookX, Eraser, RefreshCw, Target } from 'lucide-react'
+import { BookX, Download, Eraser, RefreshCw, Target } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { QuestionBody } from '@/components/question-body'
@@ -61,6 +61,54 @@ export function WrongBookView() {  const records = useProgress((s) => s.records)
     for (const list of buckets.values()) list.sort((a, b) => qNum(a) - qNum(b))
     return [...buckets.entries()].sort((a, b) => b[0] - a[0])
   }, [wrongQids])
+
+  /**
+   * 导出错题 JSON：把错题连同科目/章节/考点/题干摘要一起落成文件。
+   * 进度只存在浏览器 localStorage，导不出来就没法做跨设备分析或备份。
+   */
+  const exportWrong = React.useCallback(() => {
+    const now = new Date()
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`
+    const items = wrongQids.map((qid) => {
+      const q = QUESTION_MAP.get(qid)
+      const r = records[qid]
+      return {
+        qid,
+        year: q?.year ?? 0,
+        number: q?.number ?? 0,
+        subject: q?.subject ?? '',
+        subjectName: q ? SUBJECTS[q.subject].name : '',
+        type: q?.type ?? '',
+        topic: q?.topic ?? '',
+        difficulty: q?.difficulty ?? '',
+        score: q?.score ?? 0,
+        wrong: r?.wrong ?? 0,
+        correct: r?.correct ?? 0,
+        attempts: r?.attempts ?? 0,
+        lastResult: r?.lastResult ?? '',
+        lastAt: r?.lastAt ?? 0,
+        answer: q?.answer ?? '',
+        stem: (q?.question ?? '').replace(/\s+/g, ' ').slice(0, 160),
+      }
+    })
+    const payload = {
+      app: '408Lab',
+      version: 1,
+      exportedAt: now.toISOString(),
+      count: items.length,
+      items,
+    }
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `408Lab-错题-${stamp}.json`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+  }, [wrongQids, records])
 
   // 进入/切换单年页时滚到顶部：view 仍是 'wrong'，外壳只在 view 变化时滚顶
   React.useEffect(() => {
@@ -166,10 +214,21 @@ export function WrongBookView() {  const records = useProgress((s) => s.records)
             共 <b className="text-foreground tabular-nums">{wrongQids.length}</b> 道待巩固 · 重练答对后自动移出
           </p>
         </div>
-        <Button className="gap-2 font-semibold" onClick={() => startPractice({ qids: wrongQids, title: '错题重练' })}>
-          <RefreshCw className="h-4 w-4" />
-          重练全部错题
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={exportWrong}
+            title="导出当前错题（含科目/章节/考点/题干摘要），用于备份或交给 AI 分析"
+          >
+            <Download className="h-4 w-4" />
+            导出错题 JSON
+          </Button>
+          <Button className="gap-2 font-semibold" onClick={() => startPractice({ qids: wrongQids, title: '错题重练' })}>
+            <RefreshCw className="h-4 w-4" />
+            重练全部错题
+          </Button>
+        </div>
       </header>
 
       <div className="flex items-center gap-2" role="tablist" aria-label="错题分组方式">
