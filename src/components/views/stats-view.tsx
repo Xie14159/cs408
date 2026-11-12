@@ -306,7 +306,10 @@ export function StatsView() {
       <Card className="bg-card/90 p-5">
         <h2 className="mb-1 font-semibold">知识点热力图</h2>
         <p className="mb-4 text-xs text-muted-foreground">按科目分组，条越长表示错得越多</p>
-        {(() => {
+        {!mounted ? (
+          <p className="py-8 text-center font-mono text-xs text-muted-foreground">加载中…</p>
+        ) : (
+        (() => {
           const bySubj: Record<string, { topic: string; wrong: number; total: number }[]> = {}
           Object.entries(records).forEach(([qid, r]) => {
             const q = QUESTION_MAP.get(qid)
@@ -349,7 +352,8 @@ export function StatsView() {
               </div>
             </div>
           ))
-        })()}
+        })()
+        )}
       </Card>
 
       {/* 考试历史 */}
