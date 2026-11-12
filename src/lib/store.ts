@@ -451,20 +451,28 @@ export const useProgress = create<ProgressState>()(
           const records = { ...cur.records }
           const sched = { ...cur.sched }
           const favorites = { ...cur.favorites }
-          for (const [qid, rec] of Object.entries(data.records || {})) {
-            const existing = records[qid]
-            if (!existing || (rec as any).lastAt > (existing as any).lastAt) {
-              records[qid] = rec as any
-              ok++
-            } else skipped++
+          if (data.records && typeof data.records === 'object' && !Array.isArray(data.records)) {
+            for (const [qid, rec] of Object.entries(data.records)) {
+              if (!rec || typeof rec !== 'object' || typeof (rec as any).lastAt !== 'number') continue
+              const existing = records[qid]
+              if (!existing || (rec as any).lastAt > (existing as any).lastAt) {
+                records[qid] = rec as any
+                ok++
+              } else skipped++
+            }
           }
-          for (const [qid, sch] of Object.entries(data.sched || {})) {
-            if (!sched[qid]) sched[qid] = sch as any
+          if (data.sched && typeof data.sched === 'object' && !Array.isArray(data.sched)) {
+            for (const [qid, sch] of Object.entries(data.sched)) {
+              if (!sched[qid]) sched[qid] = sch as any
+            }
           }
-          for (const [qid, fav] of Object.entries(data.favorites || {})) {
-            if (!favorites[qid]) favorites[qid] = fav as any
+          if (data.favorites && typeof data.favorites === 'object' && !Array.isArray(data.favorites)) {
+            for (const [qid, fav] of Object.entries(data.favorites)) {
+              if (!favorites[qid]) favorites[qid] = fav as any
+            }
           }
-          set({ records, sched, favorites })
+          const exams = Array.isArray(data.exams) ? [...cur.exams, ...data.exams.filter((e: any) => e && e.id)] : cur.exams
+          set({ records, sched, favorites, exams })
           return { ok, skipped }
         } catch (e) {
           return { ok: 0, skipped: -1 }
