@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { BookX, Download, Eraser, RefreshCw, Target } from 'lucide-react'
+import { BookX, Download, Eraser, RefreshCw, Target, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { QuestionBody } from '@/components/question-body'
@@ -248,6 +248,27 @@ export function WrongBookView() {  const records = useProgress((s) => s.records)
             <Download className="h-4 w-4" />
             导出错题 JSON
           </Button>
+          <label>
+            <input
+              type="file"
+              accept=".json"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0]
+                if (!f) return
+                const reader = new FileReader()
+                reader.onload = () => {
+                  const res = useProgress.getState().importJSON(String(reader.result))
+                  if (res.skipped === -1) alert('导入失败：文件格式不对')
+                  else alert(`导入完成：${res.ok}条，跳过${res.skipped}条（已有更新）`)
+                }
+                reader.readAsText(f)
+              }}
+            />
+            <Button variant="outline" className="gap-2" asChild>
+              <span><Upload className="h-4 w-4" /> 导入 JSON</span>
+            </Button>
+          </label>
           <Button className="gap-2 font-semibold" onClick={() => startPractice({ qids: wrongQids, title: '错题重练' })}>
             <RefreshCw className="h-4 w-4" />
             重练全部错题

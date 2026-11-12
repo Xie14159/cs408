@@ -143,6 +143,10 @@ interface ProgressState {
   /** 并入外部错题本（不会 38 + 不熟 13），只在首次进入时跑一次，返回并入条数 */
   importExternalWrong: () => number
   resetAll: () => void
+  /** 导出全部进度为JSON字符串 */
+  exportJSON: () => string
+  /** 从JSON字符串导入进度，合并策略：保留较新的lastAt */
+  importJSON: (json: string) => { ok: number; skipped: number }
 }
 
 function todayKey(): string {
@@ -186,7 +190,7 @@ function withProcessed(
 
 export const useProgress = create<ProgressState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       records: {},
       daily: {},
       exams: [],
@@ -426,6 +430,46 @@ export const useProgress = create<ProgressState>()(
           processedDaily: {},
           externalImportedAt: '',
         }),
+      exportJSON: () => {
+        const s = get()
+        return JSON.stringify({
+          schema: '408lab-backup@1',
+          exportedAt: new Date().toISOString(),
+          records: s.records,
+          sched: s.sched,
+          favorites: s.favorites,
+          exams: s.exams,
+          processedDaily: s.processedDaily,
+        })
+      },
+      importJSON: (json: string) => {
+        try {
+          const data = JSON.parse(json)
+          if (data.schema !== '408lab-backup@1') throw new Error('格式不对')
+          const cur = get()
+          let ok = 0, skipped = 0
+          const records = { ...cur.records }
+          const sched = { ...cur.sched }
+          const favorites = { ...cur.favorites }
+          for (const [qid, rec] of Object.entries(data.records || {})) {
+            const existing = records[qid]
+            if (!existing || (rec as any).lastAt > (existing as any).lastAt) {
+              records[qid] = rec as any
+              ok++
+            } else skipped++
+          }
+          for (const [qid, sch] of Object.entries(data.sched || {})) {
+            if (!sched[qid]) sched[qid] = sch as any
+          }
+          for (const [qid, fav] of Object.entries(data.favorites || {})) {
+            if (!favorites[qid]) favorites[qid] = fav as any
+          }
+          set({ records, sched, favorites })
+          return { ok, skipped }
+        } catch (e) {
+          return { ok: 0, skipped: -1 }
+        }
+      },
     }),
     {
       // 写 localStorage 去抖：连点「做对/又错」时只落盘一次，

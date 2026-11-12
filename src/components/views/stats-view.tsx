@@ -302,6 +302,56 @@ export function StatsView() {
         </Card>
       </div>
 
+      {/* 知识点热力图：按科目分组，显示每个topic错题数 */}
+      <Card className="bg-card/90 p-5">
+        <h2 className="mb-1 font-semibold">知识点热力图</h2>
+        <p className="mb-4 text-xs text-muted-foreground">按科目分组，条越长表示错得越多</p>
+        {(() => {
+          const bySubj: Record<string, { topic: string; wrong: number; total: number }[]> = {}
+          Object.entries(records).forEach(([qid, r]) => {
+            const q = QUESTION_MAP.get(qid)
+            if (!q) return
+            const s = (bySubj[q.subject] ??= [])
+            const found = s.find((x) => x.topic === q.topic)
+            if (found) {
+              found.wrong += r.wrong
+              found.total += r.correct + r.wrong
+            } else {
+              s.push({ topic: q.topic, wrong: r.wrong, total: r.correct + r.wrong })
+            }
+          })
+          const maxWrong = Math.max(1, ...Object.values(bySubj).flat().map((x) => x.wrong))
+          return SUBJECT_ORDER.filter((code) => bySubj[code]).map((code) => (
+            <div key={code} className="mb-4">
+              <p className={cn('mb-2 text-xs font-semibold', SUBJECTS[code].color)}>
+                {SUBJECTS[code].name}
+              </p>
+              <div className="space-y-1.5">
+                {bySubj[code].sort((a, b) => b.wrong - a.wrong).map((t) => (
+                  <div key={t.topic} className="flex items-center gap-2 text-xs">
+                    <span className="w-28 shrink-0 truncate text-right text-muted-foreground">{t.topic}</span>
+                    <div className="h-3 flex-1 overflow-hidden rounded bg-muted">
+                      <div
+                        className={cn(
+                          'h-full rounded',
+                          t.wrong === 0 ? 'bg-emerald-500/60' :
+                          t.wrong / maxWrong > 0.6 ? 'bg-rose-500' :
+                          t.wrong / maxWrong > 0.3 ? 'bg-amber-500' : 'bg-emerald-500',
+                        )}
+                        style={{ width: `${Math.max(4, (t.wrong / maxWrong) * 100)}%` }}
+                      />
+                    </div>
+                    <span className="w-10 shrink-0 font-mono text-muted-foreground tabular-nums">
+                      {t.wrong}/{t.total}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))
+        })()}
+      </Card>
+
       {/* 考试历史 */}
       <Card className="bg-card/90 p-5">
         <h2 className="mb-4 font-semibold">模考记录</h2>

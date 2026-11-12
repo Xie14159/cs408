@@ -14,15 +14,17 @@ export function RichText({
   text: string
   className?: string
 }) {
-  const lines = text.split('\n')
+  // PDF OCR出来的文本每行都有换行，单个\n是行内换行应合并为空格；
+  // 空行（\n\n）才是段落分隔。
+  const normalized = text.replace(/\r\n/g, '\n')
+  const paragraphs = normalized.split(/\n{2,}/)
   return (
-    <div className={cn('leading-relaxed whitespace-pre-wrap break-words', className)}>
-      {lines.map((line, i) => (
-        <React.Fragment key={i}>
-          {i > 0 && <br />}
-          {renderInline(line)}
-        </React.Fragment>
-      ))}
+    <div className={cn('leading-relaxed whitespace-pre-wrap break-words space-y-2', className)}>
+      {paragraphs.map((para, i) => {
+        // 段落内单个换行替换为空格，避免逐词换行
+        const flat = para.replace(/\n/g, ' ')
+        return <p key={i}>{renderInline(flat)}</p>
+      })}
     </div>
   )
 }

@@ -364,6 +364,12 @@ function DailyItem({
   const skipReview = useProgress((s) => s.skipReview)
 
   const [open, setOpen] = React.useState(false)
+  const [autoSubmitted, setAutoSubmitted] = React.useState(false)
+  const [wrongSelected, setWrongSelected] = React.useState(false)
+  React.useEffect(() => {
+    setAutoSubmitted(false)
+    setWrongSelected(false)
+  }, [qid])
   if (!q || !rec) return null
 
   const due = dueDateOf(rec, today)
@@ -373,7 +379,7 @@ function DailyItem({
   const stubborn = rec.wrongCount >= STUBBORN_THRESHOLD
 
   return (
-    <Card className="cv-auto bg-card/90 p-4">
+    <Card className={cn("cv-auto bg-card/90 p-4 transition-opacity", autoSubmitted && "opacity-50")}>
       <div className="mb-2 flex flex-wrap items-center gap-1.5">
         <span className="font-mono text-[11px] text-muted-foreground/60">
           {String(index).padStart(2, '0')}
@@ -400,7 +406,10 @@ function DailyItem({
             <QuestionBody q={q} mode="review" reviewSelected={undefined} />
           </div>
         ) : (
-          <QuestionBody q={q} mode="browse" />
+          <QuestionBody q={q} mode="practice" onSubmit={(qid, correct) => {
+            if (correct) { setWrongSelected(false) }
+            else { setWrongSelected(true) }
+          }} />
         )}
       </div>
 
@@ -425,6 +434,11 @@ function DailyItem({
         </span>
       </div>
 
+      {wrongSelected && !autoSubmitted && (
+        <div className="mt-2 rounded-md bg-red-50 px-3 py-1.5 text-xs text-red-700 dark:bg-red-950/30 dark:text-red-300">
+          选错了。看解析后点"看了解析"，或直接点"又错"。
+        </div>
+      )}
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <Button
           size="sm"
@@ -438,7 +452,8 @@ function DailyItem({
         <Button
           size="sm"
           className="h-7 gap-1 bg-emerald-600 text-xs hover:bg-emerald-700"
-          onClick={() => recordReview(qid, 'got')}
+          onClick={() => { recordReview(qid, 'got'); setAutoSubmitted(true) }}
+          disabled={autoSubmitted}
           title="直接推出来，完全掌握：正常推进一级"
         >
           <Check className="h-3 w-3" />
@@ -448,7 +463,8 @@ function DailyItem({
           size="sm"
           variant="outline"
           className="h-7 gap-1 border-amber-500/60 text-xs text-amber-600 hover:bg-amber-500/10"
-          onClick={() => recordReview(qid, 'slow')}
+          onClick={() => { recordReview(qid, 'slow'); setAutoSubmitted(true) }}
+          disabled={autoSubmitted}
           title="想了一会儿才出来：阶段照推，但间隔只拿 70%"
         >
           想了会儿
@@ -457,7 +473,8 @@ function DailyItem({
           size="sm"
           variant="outline"
           className="h-7 gap-1 text-xs text-muted-foreground"
-          onClick={() => recordReview(qid, 'peek')}
+          onClick={() => { recordReview(qid, 'peek'); setAutoSubmitted(true) }}
+          disabled={autoSubmitted}
           title="看了解析才懂：不推进，明天原样再来"
         >
           看了解析
@@ -466,7 +483,8 @@ function DailyItem({
           size="sm"
           variant="destructive"
           className="h-7 gap-1 text-xs"
-          onClick={() => recordReview(qid, 'wrong')}
+          onClick={() => { recordReview(qid, 'wrong'); setAutoSubmitted(true) }}
+          disabled={autoSubmitted}
         >
           <X className="h-3 w-3" />
           又错
