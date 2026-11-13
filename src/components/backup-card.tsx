@@ -86,6 +86,8 @@ export function BackupCard() {
     try {
       const data = localStorage.getItem(key)
       if (!data) return
+      // 恢复前先快照当前状态，防误操作丢失进度
+      autoSnapshot()
       const result = importJSON(data)
       if (result.skipped === -1) {
         setMsg({ ok: false, text: '恢复失败：备份数据格式异常。' })
