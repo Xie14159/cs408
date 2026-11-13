@@ -5,6 +5,7 @@ import { BookMarked, Database, GitBranch, Keyboard, Moon, Star } from 'lucide-re
 import { Card } from '@/components/ui/card'
 import { TOTAL, YEARS, countBySubject, CURATED, MOCKS, ALL_QUESTIONS } from '@/data'
 import { SUBJECTS, SUBJECT_ORDER } from '@/data/types'
+import { BackupCard } from '@/components/backup-card'
 
 export function AboutView() {
   return (
@@ -56,6 +57,8 @@ export function AboutView() {
           <li>· 题库仅供个人备考学习使用，请勿用于商业用途。</li>
         </ul>
       </Card>
+
+      <BackupCard />
 
       <Card className="bg-card/90 p-5">
         <h2 className="mb-3 flex items-center gap-2 font-semibold">

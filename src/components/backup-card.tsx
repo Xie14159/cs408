@@ -1,0 +1,164 @@
+'use client'
+
+import * as React from 'react'
+import { Database, Download, Upload, History, Trash2 } from 'lucide-react'
+import { Card } from '@/components/ui/card'
+import { useProgress } from '@/lib/store'
+
+const BACKUP_PREFIX = '408lab-backup-'
+const KEEP_BACKUPS = 7
+
+function todayKey(): string {
+  const d = new Date()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${d.getFullYear()}${m}${day}`
+}
+
+/** 每日首开自动快照：写 localStorage['408lab-backup-YYYYMMDD']，留最近7份 */
+export function autoSnapshot() {
+  if (typeof window === 'undefined') return
+  try {
+    const key = BACKUP_PREFIX + todayKey()
+    if (localStorage.getItem(key)) return // 今天已快照过
+    const progress = localStorage.getItem('408lab-progress-v1')
+    if (!progress) return
+    localStorage.setItem(key, progress)
+    // 清理旧备份，保留最近7份
+    const all = Object.keys(localStorage).filter((k) => k.startsWith(BACKUP_PREFIX))
+    all.sort().reverse()
+    for (const old of all.slice(KEEP_BACKUPS)) {
+      localStorage.removeItem(old)
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+function listBackups(): string[] {
+  if (typeof window === 'undefined') return []
+  return Object.keys(localStorage)
+    .filter((k) => k.startsWith(BACKUP_PREFIX))
+    .sort()
+    .reverse()
+}
+
+export function BackupCard() {
+  const exportJSON = useProgress((s) => s.exportJSON)
+  const importJSON = useProgress((s) => s.importJSON)
+  const [msg, setMsg] = React.useState<{ ok: boolean; text: string } | null>(null)
+  const [backups, setBackups] = React.useState<string[]>([])
+  const fileRef = React.useRef<HTMLInputElement>(null)
+
+  React.useEffect(() => {
+    autoSnapshot()
+    setBackups(listBackups())
+  }, [])
+
+  const doExport = () => {
+    const json = exportJSON()
+    const blob = new Blob([json], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `408lab-backup-${todayKey()}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const doImport = async (file: File) => {
+    try {
+      const text = await file.text()
+      const result = importJSON(text)
+      if (result.skipped === -1) {
+        setMsg({ ok: false, text: '导入失败：文件格式不正确或数据损坏，未改动现有记录。' })
+      } else {
+        setMsg({ ok: true, text: `导入完成：合并 ${result.ok} 条，跳过 ${result.skipped} 条（较旧）。` })
+        autoSnapshot()
+        setBackups(listBackups())
+      }
+    } catch {
+      setMsg({ ok: false, text: '导入失败：无法读取文件。' })
+    }
+  }
+
+  const restoreBackup = (key: string) => {
+    try {
+      const data = localStorage.getItem(key)
+      if (!data) return
+      const result = importJSON(data)
+      if (result.skipped === -1) {
+        setMsg({ ok: false, text: '恢复失败：备份数据格式异常。' })
+      } else {
+        setMsg({ ok: true, text: `已从 ${key} 恢复：合并 ${result.ok} 条。` })
+      }
+    } catch {
+      setMsg({ ok: false, text: '恢复失败：读取备份出错。' })
+    }
+  }
+
+  return (
+    <Card className="bg-card/90 p-5">
+      <h2 className="mb-3 flex items-center gap-2 font-semibold">
+        <Database className="h-4 w-4 text-primary" />
+        数据备份与恢复
+      </h2>
+      <p className="mb-4 text-xs text-muted-foreground">
+        所有进度保存在浏览器本地。换浏览器、清缓存前请先导出。每天首次打开会自动留一份快照（保留最近 {KEEP_BACKUPS} 天）。
+      </p>
+
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={doExport}
+          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90"
+        >
+          <Download className="h-3.5 w-3.5" /> 导出备份 JSON
+        </button>
+        <button
+          onClick={() => fileRef.current?.click()}
+          className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent"
+        >
+          <Upload className="h-3.5 w-3.5" /> 导入备份 JSON
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".json,application/json"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            if (f) doImport(f)
+            e.target.value = ''
+          }}
+        />
+      </div>
+
+      {msg && (
+        <p className={`mt-3 rounded-md px-3 py-2 text-xs ${msg.ok ? 'bg-green-500/10 text-green-600' : 'bg-red-500/10 text-red-600'}`}>
+          {msg.text}
+        </p>
+      )}
+
+      {backups.length > 0 && (
+        <div className="mt-4">
+          <h3 className="mb-2 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+            <History className="h-3.5 w-3.5" /> 本地自动快照（{backups.length}）
+          </h3>
+          <ul className="space-y-1">
+            {backups.map((b) => (
+              <li key={b} className="flex items-center gap-2 text-xs">
+                <span className="font-mono text-muted-foreground">{b.replace(BACKUP_PREFIX, '')}</span>
+                <button
+                  onClick={() => restoreBackup(b)}
+                  className="text-primary hover:underline"
+                >
+                  恢复到此版本
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </Card>
+  )
+}
