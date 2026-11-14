@@ -5,6 +5,7 @@
  */
 import type { Question, VisualSpec } from '../src/data/types'
 import { TEMPLATES } from '../src/data/templates'
+import { pathToFileURL } from 'node:url'
 
 const ROOT = process.cwd()
 const name = process.argv[2]
@@ -136,8 +137,15 @@ async function main() {
   let c: Question[] = []
   let a: Question[] = []
   try {
-    const cm = (await import(`${ROOT}/src/data/mocks/${name}-c.ts`)) as Record<string, Question[]>
-    const am = (await import(`${ROOT}/src/data/mocks/${name}-a.ts`)) as Record<string, Question[]>
+    // Windows 裸绝对路径不能直接 import()，需要 file:// URL
+    const cm = (await import(pathToFileURL(`${ROOT}/src/data/mocks/${name}-c.ts`).href)) as Record<
+      string,
+      Question[]
+    >
+    const am = (await import(pathToFileURL(`${ROOT}/src/data/mocks/${name}-a.ts`).href)) as Record<
+      string,
+      Question[]
+    >
     c = cm[`${name}c`]
     a = am[`${name}a`]
   } catch (e) {

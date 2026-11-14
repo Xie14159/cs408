@@ -4,6 +4,7 @@
  */
 import type { Question } from '../src/data/types'
 import { TEMPLATES } from '../src/data/templates'
+import { pathToFileURL } from 'node:url'
 
 const ROOT = process.cwd()
 const subj = process.argv[2]
@@ -22,7 +23,11 @@ async function main() {
   const warns: string[] = []
   let list: Question[] = []
   try {
-    const m = (await import(`${ROOT}/src/data/curated/${FILE}.ts`)) as Record<string, Question[]>
+    // Windows 裸绝对路径不能直接 import()，需要 file:// URL
+    const m = (await import(pathToFileURL(`${ROOT}/src/data/curated/${FILE}.ts`).href)) as Record<
+      string,
+      Question[]
+    >
     list = m[EXPORT]
   } catch (e) {
     console.error(`❌ 无法加载 ${FILE}:`, e instanceof Error ? e.message : e)

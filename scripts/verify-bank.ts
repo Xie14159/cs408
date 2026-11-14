@@ -7,6 +7,8 @@
  */
 import type { Question, VisualSpec } from '../src/data/types'
 import { TEMPLATES } from '../src/data/templates'
+import { existsSync } from 'node:fs'
+import { pathToFileURL } from 'node:url'
 
 const ROOT = process.cwd()
 const QDIR = `${ROOT}/src/data/questions`
@@ -142,16 +144,17 @@ function checkVisual(v: VisualSpec | undefined, where: string, errs: string[], w
 }
 
 async function loadYear(y: number): Promise<{ c: Question[]; a: Question[] } | null> {
-  try {
-    const c = (await import(`${QDIR}/y${y}-c.ts`)) as Record<string, Question[]>
-    const a = (await import(`${QDIR}/y${y}-a.ts`)) as Record<string, Question[]>
-    const cList = c[`y${y}c`]
-    const aList = a[`y${y}a`]
-    if (!Array.isArray(cList) || !Array.isArray(aList)) return null
-    return { c: cList, a: aList }
-  } catch {
-    return null
-  }
+  // Windows 下 `${绝对路径}.ts` 不能直接丢给 import()，必须转成 file:// URL，
+  // 否则会 throw 被 catch 吞成 null，所有年份都显示"未生成"——校验假通过。
+  const cPath = `${QDIR}/y${y}-c.ts`
+  const aPath = `${QDIR}/y${y}-a.ts`
+  if (!existsSync(cPath) || !existsSync(aPath)) return null
+  const c = (await import(pathToFileURL(cPath).href)) as Record<string, Question[]>
+  const a = (await import(pathToFileURL(aPath).href)) as Record<string, Question[]>
+  const cList = c[`y${y}c`]
+  const aList = a[`y${y}a`]
+  if (!Array.isArray(cList) || !Array.isArray(aList)) return null
+  return { c: cList, a: aList }
 }
 
 function checkQuestion(q: Question, y: number, errs: string[], warns: string[]): void {
