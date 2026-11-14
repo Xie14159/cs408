@@ -14,4 +14,6 @@ if (-not (Test-Path -LiteralPath ".next\standalone\server.js")) {
     exit 1
 }
 Write-Host "408Lab 启动中... http://localhost:3000 （Ctrl+C 停止）" -ForegroundColor Green
-node .next\standalone\server.js
+# 必须走 serve.mjs：它会先同步静态资源（.next/static、public）再拉起 standalone server。
+# 直接 node server.js 会在 rebuild 后缺静态文件，页面变成裸 HTML。
+node scripts/serve.mjs

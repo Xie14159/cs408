@@ -6,13 +6,15 @@
 // 注意：不要用 fs.cpSync({recursive:true})——Node 22 在 Windows 上递归复制时会
 // 直接崩进程（STATUS_STACK_BUFFER_OVERRUN），而且崩之前只建了空目录，看起来像成功。
 // 这里改成逐文件递归复制，路径可控、失败点明确。
-import { copyFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, statSync, unlinkSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 
 const root = process.cwd()
 const standalone = join(root, '.next', 'standalone')
 
 function copyDir(from, to) {
+  // 自愈：目标路径上是 stale file 时先删掉，避免 mkdirSync 报 ENOTDIR
+  if (existsSync(to) && statSync(to).isFile()) unlinkSync(to)
   mkdirSync(to, { recursive: true })
   for (const e of readdirSync(from, { withFileTypes: true })) {
     const src = join(from, e.name)

@@ -10,7 +10,7 @@
 // 用法：
 //   node scripts/serve.mjs            启动（端口被占则直接报错退出）
 //   node scripts/serve.mjs --restart  先杀掉占用端口的进程再启动
-import { copyFileSync, existsSync, mkdirSync, statSync, readdirSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, statSync, unlinkSync, readdirSync } from 'node:fs'
 import { spawn, execSync } from 'node:child_process'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -44,6 +44,8 @@ function mtime(p) {
 }
 
 function copyDir(from, to) {
+  // 自愈：如果目标路径上是个 stale file（历史上 ENOTDIR 崩过），先删掉再建目录
+  if (existsSync(to) && statSync(to).isFile()) unlinkSync(to)
   mkdirSync(to, { recursive: true })
   for (const e of readdirSync(from, { withFileTypes: true })) {
     const s = join(from, e.name)
