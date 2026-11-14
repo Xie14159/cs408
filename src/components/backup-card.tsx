@@ -15,15 +15,32 @@ function todayKey(): string {
   return `${d.getFullYear()}${m}${day}`
 }
 
-/** 每日首开自动快照：写 localStorage['408lab-backup-YYYYMMDD']，留最近7份 */
-export function autoSnapshot() {
+/** 每日首开自动快照：写 localStorage['408lab-backup-YYYYMMDD']，留最近7份
+ * 必须写 exportJSON 的结构化格式（schema=408lab-backup@1），
+ * 不能直接存 zustand persist 的原始 blob —— 后者过不了 importJSON 的 schema 校验，
+ * 会导致「快照能生成但恢复必失败」。force=true 用于恢复前强制留一份当前状态。 */
+export function autoSnapshot(force = false) {
   if (typeof window === 'undefined') return
   try {
     const key = BACKUP_PREFIX + todayKey()
-    if (localStorage.getItem(key)) return // 今天已快照过
-    const progress = localStorage.getItem('408lab-progress-v1')
-    if (!progress) return
-    localStorage.setItem(key, progress)
+    if (!force && localStorage.getItem(key)) return // 今天已快照过
+    // 直接从 persist 落盘值重建结构化快照：不依赖 store 是否已 hydrate，
+    // 避免在应用刚启动、getState() 还是空对象时写出一份空备份。
+    const rawProgress = localStorage.getItem('408lab-progress-v1')
+    if (!rawProgress) return
+    const raw = JSON.parse(rawProgress)
+    const st = raw && typeof raw === 'object' ? (raw as any).state : null
+    if (!st || typeof st !== 'object') return
+    const snapshot = JSON.stringify({
+      schema: '408lab-backup@1',
+      exportedAt: new Date().toISOString(),
+      records: st.records || {},
+      sched: st.sched || {},
+      favorites: st.favorites || {},
+      exams: st.exams || [],
+      processedDaily: st.processedDaily || {},
+    })
+    localStorage.setItem(key, snapshot)
     // 清理旧备份，保留最近7份
     const all = Object.keys(localStorage).filter((k) => k.startsWith(BACKUP_PREFIX))
     all.sort().reverse()
@@ -86,9 +103,30 @@ export function BackupCard() {
     try {
       const data = localStorage.getItem(key)
       if (!data) return
-      // 恢复前先快照当前状态，防误操作丢失进度
-      autoSnapshot()
-      const result = importJSON(data)
+      // 恢复前先快照当前状态，防误操作丢失进度（force 覆盖当日已存在的那份）
+      autoSnapshot(true)
+      let result = importJSON(data)
+      if (result.skipped === -1) {
+        // 兼容修复前的旧快照：当时存的是 zustand persist 原始 blob（{state:{...},version}）
+        try {
+          const raw = JSON.parse(data)
+          const st = raw && typeof raw === 'object' ? (raw as any).state : null
+          if (st && typeof st === 'object') {
+            const migrated = JSON.stringify({
+              schema: '408lab-backup@1',
+              exportedAt: new Date().toISOString(),
+              records: st.records || {},
+              sched: st.sched || {},
+              favorites: st.favorites || {},
+              exams: st.exams || [],
+              processedDaily: st.processedDaily || {},
+            })
+            result = importJSON(migrated)
+          }
+        } catch {
+          /* 保持原始失败结果 */
+        }
+      }
       if (result.skipped === -1) {
         setMsg({ ok: false, text: '恢复失败：备份数据格式异常。' })
       } else {
