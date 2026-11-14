@@ -39,6 +39,8 @@ export function autoSnapshot(force = false) {
       favorites: st.favorites || {},
       exams: st.exams || [],
       processedDaily: st.processedDaily || {},
+      assignedDaily: st.assignedDaily || {},
+      externalImportedAt: st.externalImportedAt ?? null,
     })
     localStorage.setItem(key, snapshot)
     // 清理旧备份，保留最近7份

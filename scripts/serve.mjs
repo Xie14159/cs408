@@ -58,18 +58,14 @@ function syncAssets() {
     [join(nextDir, 'static'), join(standalone, '.next', 'static')],
     [join(root, 'public'), join(standalone, 'public')],
   ]
-  let copied = false
   for (const [from, to] of pairs) {
     if (!existsSync(from)) continue
-    // 目标不存在，或源比目标新（说明重新构建过），就重新复制
-    if (!existsSync(to) || mtime(from) > mtime(to) + 1000) {
-      // 不用 cpSync：Node 22 在 Windows 上递归复制会崩进程，且只留下空目录
-      copyDir(from, to)
-      console.log(`[serve] 已同步 ${to}`)
-      copied = true
-    }
+    // 无条件覆盖复制（幂等）。
+    // 不用 mtime 判断：源目录里删掉的文件不会让 mtime 变新，旧文件会残留在 standalone；
+    // 而构建/复制间隔小于 1s 时容差又会让新文件被判为"不新"，反而漏同步。
+    copyDir(from, to)
+    console.log(`[serve] 已同步 ${to}`)
   }
-  if (!copied) console.log('[serve] 静态资源已是最新')
 }
 
 function portPid(port) {
