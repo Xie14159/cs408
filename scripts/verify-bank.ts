@@ -19,9 +19,12 @@ const yearIdx = args.indexOf('--year')
 const strict = args.includes('--strict')
 const yearFilter = yearIdx >= 0 ? Number(args[yearIdx + 1]) : null
 
-const SUBJECT_BY_NUMBER = (n: number): string => {
-  if (n >= 1 && n <= 11) return 'ds'
-  if (n >= 12 && n <= 22) return 'co'
+const SUBJECT_BY_NUMBER = (n: number, y: number): string => {
+  // 2009 年是 408 首年：ds 选择 1-10（20分），co 选择 11-22（24分）
+  // 2010 年起：ds 选择 1-11（22分），co 选择 12-22（22分）
+  const dsEnd = y === 2009 ? 10 : 11
+  if (n >= 1 && n <= dsEnd) return 'ds'
+  if (n >= dsEnd + 1 && n <= 22) return 'co'
   if (n >= 23 && n <= 32) return 'os'
   if (n >= 33 && n <= 40) return 'cn'
   if (n === 41 || n === 42) return 'ds'
@@ -31,12 +34,8 @@ const SUBJECT_BY_NUMBER = (n: number): string => {
   return ''
 }
 
-const BIG_SCORE_RULES: Array<{ nums: number[]; sum: number; label: string }> = [
-  { nums: [41, 42], sum: 23, label: '数据结构综合(41+42)' },
-  { nums: [43, 44], sum: 23, label: '组成原理综合(43+44)' },
-  { nums: [45, 46], sum: 15, label: '操作系统综合(45+46)' },
-  { nums: [47], sum: 9, label: '网络综合(47)' },
-]
+/** 各科卷面总分固定为 ds=45, co=45, os=35, cn=25 */
+const SUBJECT_TOTAL_SCORES: Record<string, number> = { ds: 45, co: 45, os: 35, cn: 25 }
 
 const PLACEHOLDER_RE = /TODO|FIXME|待补充|此处省略|（略）|\(略\)|占位符|XXXX+|\?\?\?+/
 
@@ -163,7 +162,7 @@ function checkQuestion(q: Question, y: number, errs: string[], warns: string[]):
   if (q.year !== y) errs.push(`${where}: year 应为 ${y}`)
   if (typeof q.number !== 'number' || q.number < 1 || q.number > 47)
     errs.push(`${where}: 非法卷面题号 ${q.number}`)
-  const expectSubj = SUBJECT_BY_NUMBER(q.number)
+  const expectSubj = SUBJECT_BY_NUMBER(q.number, y)
   if (q.subject !== expectSubj)
     errs.push(`${where}: 题号 ${q.number} 科目应为 ${expectSubj}，实际 ${q.subject}`)
   const expectType = q.number <= 40 ? 'single' : 'application'
@@ -175,7 +174,9 @@ function checkQuestion(q: Question, y: number, errs: string[], warns: string[]):
   if (!q.question || q.question.length < 8) errs.push(`${where}: 题干过短`)
   if (PLACEHOLDER_RE.test(q.question) || PLACEHOLDER_RE.test(q.explanation ?? ''))
     errs.push(`${where}: 疑似占位文本`)
-  if (!q.explanation || q.explanation.length < 25) errs.push(`${where}: 解析过短`)
+  // 单选题要求 explanation 为完整解析；综合题解答在 answerText，explanation 可为占位指针
+  if (q.type === 'single' && (!q.explanation || q.explanation.length < 25))
+    errs.push(`${where}: 解析过短`)
 
   if (q.type === 'single') {
     if (q.score !== 2) errs.push(`${where}: 单选 score 应为 2`)
@@ -230,10 +231,10 @@ async function main(): Promise<void> {
 
     const totalScore = all.reduce((s, q) => s + (q.score ?? 0), 0)
     if (totalScore !== 150) yErrs.push(`${y}: 全卷分值 ${totalScore} ≠ 150`)
-    BIG_SCORE_RULES.forEach((r) => {
-      const s = all.filter((q) => r.nums.includes(q.number)).reduce((x, q) => x + (q.score ?? 0), 0)
-      if (s !== r.sum) yErrs.push(`${y}: ${r.label} 分值 ${s} ≠ ${r.sum}`)
-    })
+    for (const [subj, expect] of Object.entries(SUBJECT_TOTAL_SCORES)) {
+      const s = all.filter((q) => q.subject === subj).reduce((x, q) => x + (q.score ?? 0), 0)
+      if (s !== expect) yErrs.push(`${y}: ${subj} 学科总分 ${s} ≠ ${expect}`)
+    }
 
     all.forEach((q) => {
       if (idSeen.has(q.id)) yErrs.push(`ID 重复：${q.id} 同时出现在 ${idSeen.get(q.id)} 和 ${y}`)
