@@ -5,6 +5,8 @@
  *   bun scripts/verify-notes.ts                        # 校验全部（经 index 装配）
  */
 import type { NoteCategory, NoteBlock } from '../src/data/notes/types'
+import { resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 interface Issue {
   where: string
@@ -92,7 +94,8 @@ async function main() {
   let cats: NoteCategory[] = []
 
   if (args[0]) {
-    const mod = await import(args[0].replace(/^src\//, '/home/z/my-project/src/').replace(/\.ts$/, ''))
+    const target = resolve(process.cwd(), args[0].replace(/\.ts$/, ''))
+    const mod = await import(pathToFileURL(target).href)
     const cat: NoteCategory | undefined = Object.values(mod).find(
       (v) => typeof v === 'object' && v !== null && 'chapters' in (v as object),
     ) as NoteCategory | undefined

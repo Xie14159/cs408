@@ -71,6 +71,8 @@ export function QuestionBody({
 
   const correctLetter = q.type === 'single' ? q.answer : undefined
   const isCorrect = mode === 'review' ? reviewSelected === correctLetter : selected === correctLetter
+  /** 题干引用原卷图形、但题库只保留了文字条件时的显式提示，避免学生对着“如图”找不到图 */
+  const missingFigure = q.type === 'application' && /原题带图|缺少图形/.test(q.explanation ?? '')
 
   return (
     <div className="flex flex-col gap-4">
@@ -83,6 +85,12 @@ export function QuestionBody({
       {/* 题干 */}
       <RichText text={q.question} className="text-[15px] font-medium" />
       {q.code && <CodeBlock code={q.code.text} lang={q.code.lang} />}
+
+      {missingFigure && (
+        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-700 dark:text-amber-300">
+          原卷配图未随题库收录，请对照纸质真题查看图形；本题文字条件完整，可直接作答。
+        </div>
+      )}
 
       {/* 单选题选项 */}
       {q.type === 'single' && q.options && (
@@ -198,6 +206,12 @@ export function QuestionBody({
             <p className="mb-2 font-mono text-xs font-semibold text-primary">✦ 参考答案</p>
             <RichText text={q.answerText ?? ''} className="text-sm" />
           </div>
+          {q.explanation && q.explanation !== '参考解答见「参考答案」。' && !missingFigure && (
+            <div className="rounded-lg border border-border bg-muted/30 p-4">
+              <p className="mb-2 font-mono text-xs font-semibold text-muted-foreground">✦ 解析</p>
+              <RichText text={q.explanation} className="text-sm" />
+            </div>
+          )}
         </div>
       )}
 

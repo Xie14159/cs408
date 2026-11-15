@@ -40,7 +40,7 @@ export const y2016c: Question[] = [
       "p->next->prev = p->prev; p->prev->next = p->next; free(p);"
     ],
     "answer": "D",
-    "explanation": "参考单链表删除操作，这种题为送分题。"
+    "explanation": "删除双向循环链表结点 p 时，必须先让 p 的后继结点指向 p 的前驱，再让 p 的前驱结点指向 p 的后继，最后释放 p：p->next->prev = p->prev; p->prev->next = p->next; free(p)。若先修改前驱的 next，后继结点地址会丢失；A、B、C 三个选项都有一侧指针赋值错误，只有 D 的两步顺序和指针方向都正确。"
   },
   {
     "id": "q-2016-03",

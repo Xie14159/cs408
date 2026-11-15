@@ -15,6 +15,7 @@ import {
   type ReviewGrade,
   type WrongSched,
 } from '@/lib/ebbinghaus'
+import { mergeDailyInto, pickNewerDate } from '@/lib/backup-merge'
 
 
 /* ---------------- 去抖的 persist 存储 ---------------- */
@@ -440,6 +441,8 @@ export const useProgress = create<ProgressState>()(
           favorites: s.favorites,
           exams: s.exams,
           processedDaily: s.processedDaily,
+          assignedDaily: s.assignedDaily,
+          externalImportedAt: s.externalImportedAt,
         })
       },
       importJSON: (json: string) => {
@@ -451,6 +454,8 @@ export const useProgress = create<ProgressState>()(
           const records = { ...cur.records }
           const sched = { ...cur.sched }
           const favorites = { ...cur.favorites }
+          const assignedDaily = { ...cur.assignedDaily }
+          const processedDaily = { ...cur.processedDaily }
           if (data.records && typeof data.records === 'object' && !Array.isArray(data.records)) {
             for (const [qid, rec] of Object.entries(data.records)) {
               if (!rec || typeof rec !== 'object' || typeof (rec as any).lastAt !== 'number') continue
@@ -472,7 +477,12 @@ export const useProgress = create<ProgressState>()(
             }
           }
           const exams = Array.isArray(data.exams) ? [...cur.exams, ...data.exams.filter((e: any) => e && e.id)] : cur.exams
-          set({ records, sched, favorites, exams })
+          // 每日安排 / 已处理按日期取并集：恢复备份不能把当天已经做过的题重新变回“未处理”，
+          // 也不能用旧备份覆盖掉当天新安排的题。
+          mergeDailyInto(assignedDaily, data.assignedDaily)
+          mergeDailyInto(processedDaily, data.processedDaily)
+          const externalImportedAt = pickNewerDate(cur.externalImportedAt, data.externalImportedAt)
+          set({ records, sched, favorites, exams, assignedDaily, processedDaily, externalImportedAt })
           return { ok, skipped }
         } catch (e) {
           return { ok: 0, skipped: -1 }

@@ -5,7 +5,7 @@
  *   bun scripts/verify-bank.ts               校验所有已存在的年份
  *   bun scripts/verify-bank.ts --strict      18 套（2009-2026）必须齐全
  */
-import type { Question, VisualSpec } from '../src/data/types'
+import type { Question, SubjectCode, VisualSpec } from '../src/data/types'
 import { TEMPLATES } from '../src/data/templates'
 import { existsSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
@@ -19,7 +19,20 @@ const yearIdx = args.indexOf('--year')
 const strict = args.includes('--strict')
 const yearFilter = yearIdx >= 0 ? Number(args[yearIdx + 1]) : null
 
-const SUBJECT_BY_NUMBER = (n: number, y: number): string => {
+/**
+ * 综合题 41–47 的科目并不按题号固定，不同年份顺序会变。
+ * 这里只登记与默认蓝图（41–42 ds、43–44 co、45–46 os、47 cn）不同的年份，
+ * 依据是各年官方卷面题干与标准答案的分科。
+ */
+const COMPREHENSIVE_SUBJECT_OVERRIDES: Record<number, Record<number, SubjectCode>> = {
+  2014: { 41: 'ds', 42: 'ds', 43: 'cn', 44: 'co', 45: 'co', 46: 'os', 47: 'os' },
+  2016: { 41: 'cn', 42: 'ds', 43: 'ds', 44: 'co', 45: 'co', 46: 'os', 47: 'os' },
+  2019: { 41: 'ds', 42: 'ds', 43: 'os', 44: 'os', 45: 'co', 46: 'co', 47: 'cn' },
+}
+
+const SUBJECT_BY_NUMBER = (n: number, y: number): SubjectCode => {
+  const override = COMPREHENSIVE_SUBJECT_OVERRIDES[y]?.[n]
+  if (override) return override
   // 2009 年是 408 首年：ds 选择 1-10（20分），co 选择 11-22（24分）
   // 2010 年起：ds 选择 1-11（22分），co 选择 12-22（22分）
   const dsEnd = y === 2009 ? 10 : 11
@@ -31,11 +44,20 @@ const SUBJECT_BY_NUMBER = (n: number, y: number): string => {
   if (n === 43 || n === 44) return 'co'
   if (n === 45 || n === 46) return 'os'
   if (n === 47) return 'cn'
-  return ''
+  return '' as SubjectCode
 }
 
-/** 各科卷面总分固定为 ds=45, co=45, os=35, cn=25 */
+/** 默认按 ds=45, co=45, os=35, cn=25 校验 */
 const SUBJECT_TOTAL_SCORES: Record<string, number> = { ds: 45, co: 45, os: 35, cn: 25 }
+
+/**
+ * 个别年份官方卷面的分科总分与通用蓝图有 2 分偏差，按官方试卷登记；
+ * 未登记的年份仍走默认蓝图。2018、2025 均已逐题核对官方分值。
+ */
+const SUBJECT_TOTAL_OVERRIDES: Record<number, Record<string, number>> = {
+  2018: { ds: 47, co: 45, os: 35, cn: 23 },
+  2025: { ds: 45, co: 43, os: 37, cn: 25 },
+}
 
 const PLACEHOLDER_RE = /TODO|FIXME|待补充|此处省略|（略）|\(略\)|占位符|XXXX+|\?\?\?+/
 
@@ -231,7 +253,7 @@ async function main(): Promise<void> {
 
     const totalScore = all.reduce((s, q) => s + (q.score ?? 0), 0)
     if (totalScore !== 150) yErrs.push(`${y}: 全卷分值 ${totalScore} ≠ 150`)
-    for (const [subj, expect] of Object.entries(SUBJECT_TOTAL_SCORES)) {
+    for (const [subj, expect] of Object.entries(SUBJECT_TOTAL_OVERRIDES[y] ?? SUBJECT_TOTAL_SCORES)) {
       const s = all.filter((q) => q.subject === subj).reduce((x, q) => x + (q.score ?? 0), 0)
       if (s !== expect) yErrs.push(`${y}: ${subj} 学科总分 ${s} ≠ ${expect}`)
     }
