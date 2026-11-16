@@ -15,22 +15,45 @@ import { ThemeToggle } from '@/components/theme-toggle'
 import { AuthMenu } from '@/components/auth-menu'
 import { ShutdownButton } from '@/components/shutdown-button'
 import { useSyncBridge } from '@/lib/use-auth'
-import { HomeView } from '@/components/views/home-view'
-import { QuestionsView } from '@/components/views/questions-view'
-import { PracticeView } from '@/components/views/practice-view'
-import { ExamView } from '@/components/views/exam-view'
-import { WrongBookView } from '@/components/views/wrong-book-view'
-import { FavoritesView } from '@/components/views/favorites-view'
-const NotesView = dynamic(() => import('@/components/views/notes-view').then((m) => m.NotesView), {
-  loading: () => (
-    <div className="py-24 text-center font-mono text-xs text-muted-foreground">
-      $ loading notes ...
-    </div>
-  ),
+const viewLoading = () => (
+  <div className="flex items-center justify-center py-24 font-mono text-xs text-muted-foreground">
+    $ loading view ...
+  </div>
+)
+const HomeView = dynamic(() => import('@/components/views/home-view').then((m) => m.HomeView), {
+  loading: viewLoading,
 })
-import { StatsView } from '@/components/views/stats-view'
-import { AboutView } from '@/components/views/about-view'
-import { DailyView } from '@/components/views/daily-view'
+const QuestionsView = dynamic(
+  () => import('@/components/views/questions-view').then((m) => m.QuestionsView),
+  { loading: viewLoading },
+)
+const PracticeView = dynamic(
+  () => import('@/components/views/practice-view').then((m) => m.PracticeView),
+  { loading: viewLoading },
+)
+const ExamView = dynamic(() => import('@/components/views/exam-view').then((m) => m.ExamView), {
+  loading: viewLoading,
+})
+const WrongBookView = dynamic(
+  () => import('@/components/views/wrong-book-view').then((m) => m.WrongBookView),
+  { loading: viewLoading },
+)
+const FavoritesView = dynamic(
+  () => import('@/components/views/favorites-view').then((m) => m.FavoritesView),
+  { loading: viewLoading },
+)
+const NotesView = dynamic(() => import('@/components/views/notes-view').then((m) => m.NotesView), {
+  loading: viewLoading,
+})
+const StatsView = dynamic(() => import('@/components/views/stats-view').then((m) => m.StatsView), {
+  loading: viewLoading,
+})
+const AboutView = dynamic(() => import('@/components/views/about-view').then((m) => m.AboutView), {
+  loading: viewLoading,
+})
+const DailyView = dynamic(() => import('@/components/views/daily-view').then((m) => m.DailyView), {
+  loading: viewLoading,
+})
 import { ALL_QUESTIONS, isBankReady, loadBank } from '@/data'
 import { useUI, useProgress } from '@/lib/store'
 import dynamic from 'next/dynamic'
