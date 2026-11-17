@@ -95,6 +95,8 @@ export function WrongBookView() {  const records = useProgress((s) => s.records)
   const [syncing, setSyncing] = React.useState(false)
   const syncToDisk = React.useCallback(async () => {
     if (Object.keys(records).length === 0) return
+    // 题库是异步加载的：还没 ready 时题干/解析都是空的，这时候落盘等于写了个残缺文件
+    if (QUESTION_MAP.size === 0) return
     setSyncing(true)
     const payload = buildWrongbookPayload(records, sched)
     const res = await saveWrongbookToDisk(payload)
@@ -113,6 +115,25 @@ export function WrongBookView() {  const records = useProgress((s) => s.records)
       void syncToDisk()
     }, 1500)
     return () => window.clearTimeout(t)
+  }, [records, syncToDisk])
+
+  // 题库晚于 localStorage 加载好的情况：等 map 有内容后补一次（只补一次，避免轮询）
+  React.useEffect(() => {
+    if (QUESTION_MAP.size > 0 || Object.keys(records).length === 0) return
+    let done = false
+    const id = window.setInterval(() => {
+      if (done) return
+      if (QUESTION_MAP.size > 0) {
+        done = true
+        window.clearInterval(id)
+        void syncToDisk()
+      }
+    }, 800)
+    window.setTimeout(() => {
+      done = true
+      window.clearInterval(id)
+    }, 15000)
+    return () => window.clearInterval(id)
   }, [records, syncToDisk])
 
   // 进入/切换单年页时滚到顶部：view 仍是 'wrong'，外壳只在 view 变化时滚顶
