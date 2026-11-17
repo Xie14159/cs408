@@ -15,6 +15,11 @@ import { ThemeToggle } from '@/components/theme-toggle'
 import { AuthMenu } from '@/components/auth-menu'
 import { ShutdownButton } from '@/components/shutdown-button'
 import { useSyncBridge } from '@/lib/use-auth'
+import dynamic from 'next/dynamic'
+import type { ViewId } from '@/lib/store'
+import { useUI, useProgress } from '@/lib/store'
+import { ALL_QUESTIONS, isBankReady, loadBank } from '@/data'
+import { cn } from '@/lib/utils'
 const viewLoading = () => (
   <div className="flex items-center justify-center py-24 font-mono text-xs text-muted-foreground">
     $ loading view ...
@@ -54,11 +59,6 @@ const AboutView = dynamic(() => import('@/components/views/about-view').then((m)
 const DailyView = dynamic(() => import('@/components/views/daily-view').then((m) => m.DailyView), {
   loading: viewLoading,
 })
-import { ALL_QUESTIONS, isBankReady, loadBank } from '@/data'
-import { useUI, useProgress } from '@/lib/store'
-import dynamic from 'next/dynamic'
-import type { ViewId } from '@/lib/store'
-import { cn } from '@/lib/utils'
 
 const NAV: Array<{ id: ViewId; label: string }> = [
   { id: 'home', label: '首页' },
@@ -133,6 +133,28 @@ export function AppShell() {
       else window.clearTimeout(id)
     }
   }, [reloadKey, bankStatus])
+
+  // 高频视图空闲预取：只预取首页/题库/刷题训练，低频视图保持按需，
+  // 避免把 dynamic 拆包的收益又还回去（首次切换不必再等 chunk）。
+  React.useEffect(() => {
+    const w = window as Window & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number
+      cancelIdleCallback?: (id: number) => void
+    }
+    const prefetch = () => {
+      void import('@/components/views/home-view')
+      void import('@/components/views/questions-view')
+      void import('@/components/views/practice-view')
+    }
+    const hasIdle = typeof w.requestIdleCallback === 'function'
+    const id = hasIdle
+      ? w.requestIdleCallback!(prefetch, { timeout: 2000 })
+      : window.setTimeout(prefetch, 800)
+    return () => {
+      if (hasIdle) w.cancelIdleCallback?.(id)
+      else window.clearTimeout(id)
+    }
+  }, [])
 
   // 一次性把外部错题本（不会 / 不熟）并入错题本与记忆曲线；标记写在 localStorage，只跑一次
   const externalImportedAt = useProgress((s) => s.externalImportedAt)

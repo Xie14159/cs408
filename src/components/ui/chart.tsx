@@ -1,5 +1,10 @@
 "use client"
 
+// 注意：本文件当前没有任何模块引用（全 src 搜 @/components/ui/chart 为零命中）。
+// 它是 shadcn 的 chart 模板，保留只为将来可能复用；一旦被某个视图 import，
+// 会把 recharts 重新拉进客户端包，届时需要重新评估 next.config.ts 的
+// optimizePackageImports（本文件用命名空间导入，动态属性访问无法被静态分析）。
+
 import * as React from "react"
 import * as RechartsPrimitive from "recharts"
 
