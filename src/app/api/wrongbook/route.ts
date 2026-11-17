@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { mkdirSync, writeFileSync, renameSync, existsSync, readFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync, renameSync, existsSync, readFileSync, readdirSync, unlinkSync } from 'node:fs'
 import { join } from 'node:path'
 
 /**
@@ -18,6 +18,7 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 const MAX_BYTES = 12 * 1024 * 1024 // 12MB，正常错题本约 100~300KB
+const KEEP_SNAPSHOTS = 24 // 每小时一份，留一天
 
 interface ExportItem {
   qid?: string
@@ -138,20 +139,23 @@ function toMarkdown(p: ExportPayload, source: string): string {
       `最近 ${it.lastAtISO ?? '-'}`,
     ].join(' · ')
     lines.push(`   - ${meta}`)
-    const stem = (it.question ?? '').replace(/\s+/g, ' ').slice(0, 160)
+    // 大题题干往往很长（六个小问），160 字截断后基本看不出在问什么
+    const stemLimit = it.type === 'single' ? 200 : 400
+    const stem = (it.question ?? '').replace(/\s+/g, ' ').slice(0, stemLimit)
     if (stem) lines.push(`   - 题干：${stem}`)
     // 单选只有答案字母 + 选项；综合题的解法在 answerText 里，必须给出来，否则 md 等于没答案
     if (it.type === 'single') {
       if (it.answer) lines.push(`   - 答案：${it.answer}`)
       if (it.options?.length) {
         const opts = (['A', 'B', 'C', 'D', 'E', 'F'] as const)
-          .map((tag, idx) => (it.options?.[idx] ? `${tag}. ${it.options[idx].replace(/\s+/g, ' ').slice(0, 60)}` : ''))
+          .map((tag, idx) => (it.options?.[idx] ? `${tag}. ${it.options[idx].replace(/\s+/g, ' ').slice(0, 80)}` : ''))
           .filter(Boolean)
           .join('  ')
         if (opts) lines.push(`   - 选项：${opts}`)
       }
     } else {
-      const ref = (it.answerText ?? it.answer ?? '').replace(/\s+/g, ' ').slice(0, 400)
+      // 多小问的大题给到 800 字，够看到 (3)(4)，完整内容仍在 json
+      const ref = (it.answerText ?? it.answer ?? '').replace(/\s+/g, ' ').slice(0, 800)
       if (ref) lines.push(`   - 参考答案：${ref}`)
     }
     const expl = (it.explanation ?? '').replace(/\s+/g, ' ').slice(0, 400)
@@ -173,8 +177,19 @@ function isLocalOrigin(req: Request): boolean {
   const origin = req.headers.get('origin')
   if (!origin) return true // curl / 本机脚本没有 Origin
   try {
-    const host = new URL(origin).hostname
-    return host === 'localhost' || host === '127.0.0.1' || host === '::1'
+    const u = new URL(origin)
+    const host = u.hostname
+    // 同源优先：用局域网 IP、隧道域名打开时也能写（host 头与 Origin 一致）
+    if (u.host === req.headers.get('host')) return true
+    if (host === 'localhost' || host === '127.0.0.1' || host === '[::1]' || host === '::1') return true
+    // 内网地址段：192.168.x / 10.x / 172.16–31.x
+    if (/^192\.168\./.test(host) || /^10\./.test(host)) return true
+    const m = host.match(/^172\.(\d+)\./)
+    if (m) {
+      const n = Number(m[1])
+      if (n >= 16 && n <= 31) return true
+    }
+    return false
   } catch {
     return false
   }
@@ -202,8 +217,8 @@ export async function POST(req: Request) {
     const dir = exportsDir()
     const now = new Date()
     const pad = (n: number) => String(n).padStart(2, '0')
-    // 快照带时分：同一天多次同步各留一份，不互相覆盖
-    const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
+    // 快照按小时：一天最多 24 份，不至于「每判一道题就多一个 0.5MB 文件」
+    const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}`
 
     const latestJson = join(dir, `${base}_latest.json`)
     const latestMd = join(dir, `${base}_latest.md`)
@@ -213,6 +228,18 @@ export async function POST(req: Request) {
     writeAtomic(latestJson, json)
     writeAtomic(snapJson, json)
     writeAtomic(latestMd, toMarkdown(payload, `${base}_latest.json`))
+
+    // 只保留最近 24 份快照（按文件名里的时间戳排序，等价于按时间）
+    try {
+      const snaps = readdirSync(dir)
+        .filter((f) => f.startsWith(`${base}_`) && f.endsWith('.json') && !f.includes('_latest'))
+        .sort()
+      for (const old of snaps.slice(0, Math.max(0, snaps.length - KEEP_SNAPSHOTS))) {
+        unlinkSync(join(dir, old))
+      }
+    } catch {
+      // 清理失败不影响本次落盘
+    }
 
     return NextResponse.json({
       ok: true,
