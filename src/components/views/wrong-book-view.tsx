@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { BookX, Download, Eraser, RefreshCw, Target, Upload } from 'lucide-react'
+import { BookX, Download, Eraser, RefreshCw, Save, Target, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { QuestionBody } from '@/components/question-body'
@@ -10,6 +10,7 @@ import { getQuestion, QUESTION_MAP } from '@/data'
 import { SUBJECTS, SUBJECT_ORDER } from '@/data/types'
 import type { SubjectCode } from '@/data/types'
 import { useProgress, useUI, isWrongEntry } from '@/lib/store'
+import { buildWrongbookPayload, saveWrongbookToDisk } from '@/lib/wrongbook-export'
 import { cn } from '@/lib/utils'
 
 /** 题号（q-2009-36 → 36）；解析失败按 0 处理，不抛错也不打乱其他项 */
@@ -64,65 +65,17 @@ export function WrongBookView() {  const records = useProgress((s) => s.records)
   }, [wrongQids])
 
   /**
-   * 导出错题 JSON：把**所有做错过的题**（含已归档掌握）连同科目/章节/考点/调度一起落成文件。
+   * 导出错题 JSON（下载文件）：把**所有做错过的题**（含已归档掌握）连同科目/章节/考点/调度一起落成文件。
    * 进度只存在浏览器 localStorage，导不出来就没法做跨设备分析或备份。
    * 注意：导出范围是全部做错过的题，不只是当前「待巩固」列表——已掌握的也要留档，
    * 否则备份是残缺的，也看不出「错过又掌握」的比例。
+   * 载荷构造统一在 lib/wrongbook-export.ts，和「同步到本地」共用一份，避免两边字段漂移。
    */
   const exportWrong = React.useCallback(() => {
     const now = new Date()
     const pad = (n: number) => String(n).padStart(2, '0')
     const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`
-    let pending = 0
-    let mastered = 0
-    const items = Object.entries(records)
-      .filter(([, r]) => (r?.wrong ?? 0) > 0)
-      .sort((a, b) => b[1].lastAt - a[1].lastAt)
-      .map(([qid, r]) => {
-        const q = QUESTION_MAP.get(qid)
-        const sc = sched[qid]
-        const still = isWrongEntry(r)
-        if (still) pending++
-        else mastered++
-        return {
-          qid,
-          status: still ? '待巩固' : '已掌握',
-          year: q?.year ?? 0,
-          number: q?.number ?? 0,
-          subject: q?.subject ?? '',
-          subjectName: q ? SUBJECTS[q.subject]?.name ?? q.subject : '',
-          type: q?.type ?? '',
-          topic: q?.topic ?? '',
-          difficulty: q?.difficulty ?? '',
-          score: q?.score ?? 0,
-          wrong: r.wrong,
-          correct: r.correct,
-          attempts: r.attempts,
-          lastResult: r.lastResult,
-          lastAt: r.lastAt,
-          // 同时给一个可读的 ISO 串：lastAt 是毫秒戳，跨时区看会歧义
-          lastAtISO: new Date(r.lastAt).toISOString(),
-          answer: q?.answer ?? '',
-          // 调度信息：没有它就看不出「什么时候该复习」「在第几轮」
-          stage: sc?.stage ?? null,
-          nextReviewAt: sc?.nextReviewAt ?? '',
-          lastReviewedAt: sc?.lastReviewedAt ?? '',
-          errorTag: sc?.errorTag ?? '',
-          active: sc?.active ?? null,
-          // 备份要能独立使用：保留完整题干与解析，不只摘 160 字
-          question: q?.question ?? '',
-          answerText: (q?.answerText ?? '').slice(0, 4000),
-          stem: (q?.question ?? '').replace(/\s+/g, ' ').slice(0, 160),
-        }
-      })
-    const payload = {
-      app: '408Lab',
-      version: 2,
-      exportedAt: now.toISOString(),
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      summary: { total: items.length, pending, mastered },
-      items,
-    }
+    const payload = buildWrongbookPayload(records, sched)
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -133,6 +86,34 @@ export function WrongBookView() {  const records = useProgress((s) => s.records)
     a.remove()
     window.setTimeout(() => URL.revokeObjectURL(url), 1000)
   }, [records, sched])
+
+  /**
+   * 同步到本机磁盘：POST /api/wrongbook → exports/wrongbook_latest.json + .md。
+   * 豆包等本机工具直接读文件即可，不用再从浏览器下载一次。
+   */
+  const [syncState, setSyncState] = React.useState<{ at: number; count: number; error?: string } | null>(null)
+  const [syncing, setSyncing] = React.useState(false)
+  const syncToDisk = React.useCallback(async () => {
+    if (Object.keys(records).length === 0) return
+    setSyncing(true)
+    const payload = buildWrongbookPayload(records, sched)
+    const res = await saveWrongbookToDisk(payload)
+    setSyncing(false)
+    setSyncState({
+      at: Date.now(),
+      count: res.count ?? payload.items.length,
+      error: res.ok ? undefined : res.error,
+    })
+  }, [records, sched])
+
+  // 判分/改错因之后自动落盘（1.5 秒防抖），磁盘上的文件始终是最新的
+  React.useEffect(() => {
+    if (Object.keys(records).length === 0) return
+    const t = window.setTimeout(() => {
+      void syncToDisk()
+    }, 1500)
+    return () => window.clearTimeout(t)
+  }, [records, syncToDisk])
 
   // 进入/切换单年页时滚到顶部：view 仍是 'wrong'，外壳只在 view 变化时滚顶
   React.useEffect(() => {
@@ -237,8 +218,25 @@ export function WrongBookView() {  const records = useProgress((s) => s.records)
           <p className="mt-1 text-sm text-muted-foreground">
             共 <b className="text-foreground tabular-nums">{wrongQids.length}</b> 道待巩固 · 重练答对后自动移出
           </p>
+          {syncState && (
+            <p className="mt-1 font-mono text-[11px] text-muted-foreground">
+              {syncState.error
+                ? `本地同步失败：${syncState.error}`
+                : `已同步 ${syncState.count} 条到 exports/wrongbook_latest.json · ${new Date(syncState.at).toLocaleTimeString('zh-CN', { hour12: false })}`}
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => void syncToDisk()}
+            disabled={syncing}
+            title="写到 D:\考研备考\408\zhenti\exports\wrongbook_latest.json 与 .md；豆包等本机工具可直接读，不用下载"
+          >
+            <Save className="h-4 w-4" />
+            {syncing ? '同步中…' : '同步到本地'}
+          </Button>
           <Button
             variant="outline"
             className="gap-2"

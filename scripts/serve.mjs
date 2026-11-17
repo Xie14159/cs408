@@ -120,6 +120,8 @@ const env = {
   NODE_ENV: 'production',
   HTTPS: 'false',
   PORT: String(PORT),
+  // standalone 的 server.js 会 chdir 到 .next/standalone，API 落盘要靠这个锚回项目根
+  PROJECT_ROOT: root,
   DATABASE_URL:
     process.env.DATABASE_URL || 'file:' + join(root, 'db', 'custom.db').replace(/\\/g, '/'),
 }

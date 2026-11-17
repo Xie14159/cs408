@@ -77,3 +77,8 @@ _cookie_test.txt
 
 
 backup_*/
+
+exports/
+logs/
+backups/
+_*
