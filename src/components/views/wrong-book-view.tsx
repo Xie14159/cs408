@@ -108,33 +108,9 @@ export function WrongBookView() {  const records = useProgress((s) => s.records)
     })
   }, [records, sched])
 
-  // 判分/改错因之后自动落盘（1.5 秒防抖），磁盘上的文件始终是最新的
-  React.useEffect(() => {
-    if (Object.keys(records).length === 0) return
-    const t = window.setTimeout(() => {
-      void syncToDisk()
-    }, 1500)
-    return () => window.clearTimeout(t)
-  }, [records, syncToDisk])
-
-  // 题库晚于 localStorage 加载好的情况：等 map 有内容后补一次（只补一次，避免轮询）
-  React.useEffect(() => {
-    if (QUESTION_MAP.size > 0 || Object.keys(records).length === 0) return
-    let done = false
-    const id = window.setInterval(() => {
-      if (done) return
-      if (QUESTION_MAP.size > 0) {
-        done = true
-        window.clearInterval(id)
-        void syncToDisk()
-      }
-    }, 800)
-    window.setTimeout(() => {
-      done = true
-      window.clearInterval(id)
-    }, 15000)
-    return () => window.clearInterval(id)
-  }, [records, syncToDisk])
+  // 自动同步不在这里：它挂在 app-shell 的 <WrongbookAutoSync /> 上，
+  // 这样在练习页/套卷页判分也会落盘，而不是只有打开错题本才同步。
+  // 本页只保留手动「同步到本地」按钮，用于立即刷一次。
 
   // 进入/切换单年页时滚到顶部：view 仍是 'wrong'，外壳只在 view 变化时滚顶
   React.useEffect(() => {

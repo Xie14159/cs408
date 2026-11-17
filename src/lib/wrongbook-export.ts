@@ -42,6 +42,10 @@ export interface WrongbookItem {
   lastAt: number
   lastAtISO: string
   answer: string
+  /** 单选选项（不含 A. 前缀）；综合题为空数组 */
+  options: string[]
+  /** 解析（截 2000 字，够讲题用） */
+  explanation: string
   stage: number | null
   nextReviewAt: string
   lastReviewedAt: string
@@ -95,6 +99,8 @@ export function buildWrongbookPayload(
         lastAt: r.lastAt,
         lastAtISO: new Date(r.lastAt).toISOString(),
         answer: q?.answer ?? '',
+        options: q?.options ?? [],
+        explanation: (q?.explanation ?? '').slice(0, 2000),
         stage: sc?.stage ?? null,
         nextReviewAt: sc?.nextReviewAt ?? '',
         lastReviewedAt: sc?.lastReviewedAt ?? '',

@@ -11,6 +11,7 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet'
 import { ReadingProgress } from '@/components/reading-progress'
+import { WrongbookAutoSync } from '@/components/wrongbook-auto-sync'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { AuthMenu } from '@/components/auth-menu'
 import { ShutdownButton } from '@/components/shutdown-button'
@@ -314,6 +315,8 @@ export function AppShell() {
 
       {/* ================= 主体 ================= */}
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 md:py-14">
+        {/* 任何页面判分都会把错题同步到 exports/，不依赖错题本是否打开 */}
+        <WrongbookAutoSync />
         {bankStatus === 'ready' ? (
           <>
             {view === 'home' && <HomeView />}

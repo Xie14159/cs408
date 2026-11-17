@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { mkdirSync, writeFileSync, existsSync, readFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync, renameSync, existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 /**
@@ -33,6 +33,9 @@ interface ExportItem {
   attempts?: number
   lastAtISO?: string
   answer?: string
+  options?: string[]
+  explanation?: string
+  answerText?: string
   errorTag?: string
   stage?: number | null
   nextReviewAt?: string
@@ -137,16 +140,54 @@ function toMarkdown(p: ExportPayload, source: string): string {
     lines.push(`   - ${meta}`)
     const stem = (it.question ?? '').replace(/\s+/g, ' ').slice(0, 160)
     if (stem) lines.push(`   - 题干：${stem}`)
-    if (it.answer) lines.push(`   - 答案：${it.answer}`)
+    // 单选只有答案字母 + 选项；综合题的解法在 answerText 里，必须给出来，否则 md 等于没答案
+    if (it.type === 'single') {
+      if (it.answer) lines.push(`   - 答案：${it.answer}`)
+      if (it.options?.length) {
+        const opts = (['A', 'B', 'C', 'D', 'E', 'F'] as const)
+          .map((tag, idx) => (it.options?.[idx] ? `${tag}. ${it.options[idx].replace(/\s+/g, ' ').slice(0, 60)}` : ''))
+          .filter(Boolean)
+          .join('  ')
+        if (opts) lines.push(`   - 选项：${opts}`)
+      }
+    } else {
+      const ref = (it.answerText ?? it.answer ?? '').replace(/\s+/g, ' ').slice(0, 400)
+      if (ref) lines.push(`   - 参考答案：${ref}`)
+    }
+    const expl = (it.explanation ?? '').replace(/\s+/g, ' ').slice(0, 400)
+    if (expl) lines.push(`   - 解析：${expl}`)
     lines.push('')
   }
   return lines.join('\n')
 }
 
+/** 原子写：先写临时文件再 rename，进程中途被杀也不会留下半截 JSON */
+function writeAtomic(file: string, content: string) {
+  const tmp = `${file}.tmp-${process.pid}-${Date.now()}`
+  writeFileSync(tmp, content, 'utf-8')
+  renameSync(tmp, file)
+}
+
+/** 只接受本机页面/本机脚本的写入，挡住任意网页跨站 POST 覆盖镜像 */
+function isLocalOrigin(req: Request): boolean {
+  const origin = req.headers.get('origin')
+  if (!origin) return true // curl / 本机脚本没有 Origin
+  try {
+    const host = new URL(origin).hostname
+    return host === 'localhost' || host === '127.0.0.1' || host === '::1'
+  } catch {
+    return false
+  }
+}
+
 export async function POST(req: Request) {
   try {
+    if (!isLocalOrigin(req)) {
+      return NextResponse.json({ ok: false, error: 'forbidden origin' }, { status: 403 })
+    }
     const raw = await req.text()
-    if (raw.length > MAX_BYTES) {
+    // 按字节数判上限：raw.length 是字符数，中文下会低估
+    if (Buffer.byteLength(raw) > MAX_BYTES) {
       return NextResponse.json({ ok: false, error: 'payload too large' }, { status: 413 })
     }
     const payload = JSON.parse(raw) as ExportPayload
@@ -161,16 +202,17 @@ export async function POST(req: Request) {
     const dir = exportsDir()
     const now = new Date()
     const pad = (n: number) => String(n).padStart(2, '0')
-    const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`
+    // 快照带时分：同一天多次同步各留一份，不互相覆盖
+    const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
 
     const latestJson = join(dir, `${base}_latest.json`)
     const latestMd = join(dir, `${base}_latest.md`)
     const snapJson = join(dir, `${base}_${stamp}.json`)
 
     const json = JSON.stringify(payload, null, 2)
-    writeFileSync(latestJson, json, 'utf-8')
-    writeFileSync(snapJson, json, 'utf-8')
-    writeFileSync(latestMd, toMarkdown(payload, `${base}_latest.json`), 'utf-8')
+    writeAtomic(latestJson, json)
+    writeAtomic(snapJson, json)
+    writeAtomic(latestMd, toMarkdown(payload, `${base}_latest.json`))
 
     return NextResponse.json({
       ok: true,
