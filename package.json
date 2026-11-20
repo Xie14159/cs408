@@ -7,6 +7,7 @@
     "build": "next build && node scripts/postbuild.mjs",
     "start": "node scripts/serve.mjs",
     "restart": "node scripts/serve.mjs --restart",
+    "digest": "python scripts/make_digest.py",
     "lint": "eslint .",
     "db:push": "prisma db push --accept-data-loss",
     "db:generate": "prisma generate",

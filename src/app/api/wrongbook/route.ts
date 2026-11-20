@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { mkdirSync, writeFileSync, renameSync, existsSync, readFileSync, readdirSync, unlinkSync } from 'node:fs'
 import { join } from 'node:path'
+import { spawn } from 'node:child_process'
 
 /**
  * 错题本落盘接口：把浏览器 localStorage 里的错题导出成磁盘文件，
@@ -165,11 +166,55 @@ function toMarkdown(p: ExportPayload, source: string): string {
   return lines.join('\n')
 }
 
-/** 原子写：先写临时文件再 rename，进程中途被杀也不会留下半截 JSON */
-function writeAtomic(file: string, content: string) {
+/** 原子写：先写临时文件再 rename；rename 遇杀软/编辑器瞬时占用时退避重试 */
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+async function writeAtomic(file: string, content: string) {
   const tmp = `${file}.tmp-${process.pid}-${Date.now()}`
   writeFileSync(tmp, content, 'utf-8')
-  renameSync(tmp, file)
+  let lastErr: unknown = null
+  for (let i = 0; i < 6; i++) {
+    try {
+      renameSync(tmp, file)
+      return
+    } catch (e) {
+      lastErr = e
+      await sleep(40 * 2 ** i) // 40/80/160/320/640/1280ms
+    }
+  }
+  try {
+    unlinkSync(tmp)
+  } catch {
+    /* 清不掉就留着，下次写入会覆盖同名不同 pid 的临时文件 */
+  }
+  // 兜底：目标是「另一个进程正开着」时 rename 会一直 EPERM，
+  // 但原地覆盖通常仍可行（豆包/编辑器只以读方式打开）。
+  try {
+    writeFileSync(file, content, 'utf-8')
+  } catch {
+    throw lastErr
+  }
+}
+
+/**
+ * 同步落盘后重生成「豆包可读」的清单（速览 + 分科清单）。
+ * 后台 detached 跑，失败只记一行 warn，绝不影响接口响应。
+ * 可用环境变量 PYTHON_BIN 指定解释器（默认 PATH 里的 python）。
+ */
+function runDigest() {
+  try {
+    const py = process.env.PYTHON_BIN || 'python'
+    const child = spawn(py, [join(projectRoot(), 'scripts', 'make_digest.py')], {
+      cwd: projectRoot(),
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true,
+    })
+    child.on('error', (e) => console.warn('[wrongbook] digest 启动失败：', e.message))
+    child.unref()
+  } catch (e) {
+    console.warn('[wrongbook] digest 异常：', e instanceof Error ? e.message : String(e))
+  }
 }
 
 /** 只接受本机页面/本机脚本的写入，挡住任意网页跨站 POST 覆盖镜像 */
@@ -225,9 +270,9 @@ export async function POST(req: Request) {
     const snapJson = join(dir, `${base}_${stamp}.json`)
 
     const json = JSON.stringify(payload, null, 2)
-    writeAtomic(latestJson, json)
-    writeAtomic(snapJson, json)
-    writeAtomic(latestMd, toMarkdown(payload, `${base}_latest.json`))
+    await writeAtomic(latestJson, json)
+    await writeAtomic(snapJson, json)
+    await writeAtomic(latestMd, toMarkdown(payload, `${base}_latest.json`))
 
     // 只保留最近 24 份快照（按文件名里的时间戳排序，等价于按时间）
     try {
@@ -240,6 +285,9 @@ export async function POST(req: Request) {
     } catch {
       // 清理失败不影响本次落盘
     }
+
+    // 只有正式文件（base=wrongbook）才重生成 digest；自测写 selftest_* 不触发
+    if (base === 'wrongbook') runDigest()
 
     return NextResponse.json({
       ok: true,
