@@ -154,6 +154,39 @@ export function wrongPriority(rec: WrongSched, todayNum: number): number {
   return overdue * 10 + rec.wrongCount * 5 + (TAG_PRIORITY[rec.errorTag] ?? 0)
 }
 
+/** 逾期天数（未到期为 0）：逾期越久数值越大，是最强的行动信号 */
+export function overdueDaysOf(rec: WrongSched, todayNum: number): number {
+  return Math.max(0, todayNum - dueDay(rec, todayNum))
+}
+
+/**
+ * 纯优先级排序（不做章节轮转），供每日列表与错题拼卷复用。
+ * 逐级比较：逾期天数降序 → 错误次数降序 → 标签分降序 → 进池日期升序 → qid 升序（兜底确定性）。
+ */
+export function priorityOrder(
+  sched: Record<string, WrongSched>,
+  qids: string[],
+  todayNum: number,
+): string[] {
+  return [...qids].sort((a, b) => {
+    const ra = sched[a]
+    const rb = sched[b]
+    if (!ra) return 1
+    if (!rb) return -1
+    const oa = overdueDaysOf(ra, todayNum)
+    const ob = overdueDaysOf(rb, todayNum)
+    if (ob !== oa) return ob - oa
+    if (rb.wrongCount !== ra.wrongCount) return rb.wrongCount - ra.wrongCount
+    const ta = TAG_PRIORITY[ra.errorTag] ?? 0
+    const tb = TAG_PRIORITY[rb.errorTag] ?? 0
+    if (tb !== ta) return tb - ta
+    const da = toDay(ra.addedAt) ?? todayNum
+    const db = toDay(rb.addedAt) ?? todayNum
+    if (da !== db) return da - db
+    return a < b ? -1 : a > b ? 1 : 0
+  })
+}
+
 /* ------------------------------ 选题 ------------------------------ */
 
 /**
@@ -242,12 +275,26 @@ export function selectDailyWrong(args: SelectDailyArgs): string[] {
     else if (d <= t + REST_DUE_WINDOW) rest.push(qid)
   }
 
-  due.sort((a, b) => {
-    const pa = wrongPriority(sched[a], t)
-    const pb = wrongPriority(sched[b], t)
-    if (pb !== pa) return pb - pa
-    return (toDay(sched[a].addedAt) ?? t) - (toDay(sched[b].addedAt) ?? t)
-  })
+  // due 池：先按逾期天数分桶，桶间严格天数降序；桶内先按优先级排，再章节轮转打散。
+  // 不对整个 due 池做跨桶轮转——否则逾期更久的题会被排到逾期更近的题后面。
+  const dueBuckets = new Map<number, string[]>()
+  for (const qid of due) {
+    const od = overdueDaysOf(sched[qid], t)
+    const arr = dueBuckets.get(od) ?? []
+    arr.push(qid)
+    dueBuckets.set(od, arr)
+  }
+  const dueOrdered: string[] = []
+  for (const od of [...dueBuckets.keys()].sort((a, b) => b - a)) {
+    const bucket = dueBuckets.get(od) ?? []
+    bucket.sort((a, b) => {
+      const pa = wrongPriority(sched[a], t)
+      const pb = wrongPriority(sched[b], t)
+      if (pb !== pa) return pb - pa
+      return (toDay(sched[a].addedAt) ?? t) - (toDay(sched[b].addedAt) ?? t)
+    })
+    dueOrdered.push(...rotateByTopic(bucket, Number.POSITIVE_INFINITY, topicOf, exclude))
+  }
   stubborn.sort((a, b) => sched[b].wrongCount - sched[a].wrongCount)
   newbie.sort((a, b) => (toDay(sched[a].addedAt) ?? t) - (toDay(sched[b].addedAt) ?? t))
   // 「最久没碰」只用来决定**补位顺序**：候选已经被 REST_DUE_WINDOW 限制在「2 天内到期」，
@@ -262,7 +309,7 @@ export function selectDailyWrong(args: SelectDailyArgs): string[] {
     return (toDay(sched[a].addedAt) ?? t) - (toDay(sched[b].addedAt) ?? t)
   })
 
-  const selected = rotateByTopic(due, target, topicOf, exclude)
+  const selected = dueOrdered.slice(0, target)
   const seen = new Set(selected)
 
   for (const qid of rotateByTopic(

@@ -23,8 +23,10 @@ interface QuestionBodyProps {
   onAnswered?: (result: 'correct' | 'wrong') => void
   /** 外部受控选择（键盘操作时由父组件传入），单选题 */
   externalSelected?: string
-  /** 自定义提交处理器：传入后替代默认 submitAnswer/markApplication，用于错题本等需要自定义记忆曲线回写的场景 */
-  onSubmit?: (qid: string, correct: boolean) => void
+  /** 自定义提交处理器：传入后替代默认 submitAnswer，用于错题本等需要自定义记忆曲线回写的场景 */
+  onSubmit?: (qid: string, correct: boolean, letter?: string) => void
+  /** 自定义「已掌握」处理器：传入后替代默认 masterQuestion（错题本需要同时把卡片移出当前列表） */
+  onMastered?: (qid: string) => void
 }
 
 const LETTER_CLASS = 'flex h-7 w-7 shrink-0 items-center justify-center rounded-md border font-mono text-sm font-semibold'
@@ -36,13 +38,14 @@ export function QuestionBody({
   onAnswered,
   externalSelected,
   onSubmit,
+  onMastered,
 }: QuestionBodyProps) {
   const submitAnswer = useProgress((s) => s.submitAnswer)
-  const markApplication = useProgress((s) => s.markApplication)
+  const masterQuestion = useProgress((s) => s.masterQuestion)
   const hasRecord = useProgress((s) => !!s.records[q.id])
   const [selected, setSelected] = React.useState<string | null>(null)
   const [revealed, setRevealed] = React.useState(false)
-  const [selfMarked, setSelfMarked] = React.useState<'mastered' | 'unmastered' | null>(null)
+  const [selfMarked, setSelfMarked] = React.useState<'correct' | 'wrong' | 'mastered' | null>(null)
 
   // 切换题目时重置本地状态
   React.useEffect(() => {
@@ -61,7 +64,7 @@ export function QuestionBody({
     if (mode === 'practice') {
       const result = letter === q.answer ? 'correct' : 'wrong'
       if (onSubmit) {
-        onSubmit(q.id, result === 'correct')
+        onSubmit(q.id, result === 'correct', letter)
       } else {
         submitAnswer(q.id, result)
       }
@@ -161,9 +164,9 @@ export function QuestionBody({
         </Button>
       )}
 
-      {/* practice/review模式下：自评按钮常驻，不依赖revealed */}
+      {/* practice/review模式下：自评按钮常驻，不依赖revealed；做对/做错记这一次，已掌握直接归档 */}
       {q.type === 'application' && (mode === 'practice' || mode === 'review') && !selfMarked && (
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm text-muted-foreground">自评：</span>
           <Button
             type="button"
@@ -171,12 +174,12 @@ export function QuestionBody({
             className="bg-emerald-600 hover:bg-emerald-700"
             onClick={() => {
               if (onSubmit) onSubmit(q.id, true)
-              else markApplication(q.id, true)
-              setSelfMarked('mastered')
+              else submitAnswer(q.id, 'correct')
+              setSelfMarked('correct')
               onAnswered?.('correct')
             }}
           >
-            已掌握
+            做对
           </Button>
           <Button
             type="button"
@@ -184,18 +187,36 @@ export function QuestionBody({
             variant="destructive"
             onClick={() => {
               if (onSubmit) onSubmit(q.id, false)
-              else markApplication(q.id, false)
-              setSelfMarked('unmastered')
+              else submitAnswer(q.id, 'wrong')
+              setSelfMarked('wrong')
               onAnswered?.('wrong')
             }}
           >
-            未掌握
+            做错
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="border-muted-foreground/30 text-muted-foreground hover:text-foreground"
+            onClick={() => {
+              if (onMastered) onMastered(q.id)
+              else masterQuestion(q.id)
+              setSelfMarked('mastered')
+              onAnswered?.('correct')
+            }}
+            title="不再安排复习，直接从复习池归档"
+          >
+            已掌握
           </Button>
         </div>
       )}
       {q.type === 'application' && (mode === 'practice' || mode === 'review') && selfMarked && (
         <p className="font-mono text-xs text-muted-foreground">
-          已记录：{selfMarked === 'mastered' ? '✓ 已掌握' : '✗ 已加入错题本'}
+          已记录：
+          {selfMarked === 'correct' && '✓ 做对'}
+          {selfMarked === 'wrong' && '✗ 做错，已加入错题本'}
+          {selfMarked === 'mastered' && '✓ 已掌握，已移出复习池'}
         </p>
       )}
 

@@ -20,7 +20,7 @@ import { SubjectBadge, YearBadge } from '@/components/badges'
 import { filterQuestions, QUESTION_MAP, getQuestion } from '@/data'
 import { SUBJECTS, SUBJECT_ORDER } from '@/data/types'
 import type { SubjectCode } from '@/data/types'
-import { useUI } from '@/lib/store'
+import { useUI, useProgress } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
 const YEAR_RANGE = [2009, 2026] as const
@@ -55,8 +55,10 @@ function Chip({
 export function PracticeView() {
   const consumePreset = useUI((s) => s.consumePracticePreset)
   const startPractice = useUI((s) => s.startPractice)
+  const applyPracticeResult = useProgress((s) => s.applyPracticeResult)
 
-  const [session, setSession] = React.useState<{ qids: string[]; title: string } | null>(null)
+  /** enroll=true：成套会话来自错题本/每日错题，作答要回写记忆曲线；自由组卷不回写；note 为配额达成说明 */
+  const [session, setSession] = React.useState<{ qids: string[]; title: string; enroll: boolean; note?: string } | null>(null)
   const [presetApplied, setPresetApplied] = React.useState(false)
 
   // 配置项
@@ -79,7 +81,7 @@ export function PracticeView() {
     if (presetApplied) return
     const p = consumePreset()
     if (p) {
-      setSession(p)
+      setSession({ qids: p.qids, title: p.title, enroll: true, note: p.note })
       setIdx(0)
       setAnswers({})
       setFinished(false)
@@ -103,7 +105,7 @@ export function PracticeView() {
     })
     if (pool.length === 0) return
     const picked = shuffle ? [...pool].sort(() => Math.random() - 0.5).slice(0, count) : pool.slice(0, count)
-    setSession({ qids: picked.map((q) => q.id), title: buildTitle() })
+    setSession({ qids: picked.map((q) => q.id), title: buildTitle(), enroll: false, note: undefined })
     setIdx(0)
     setAnswers({})
     setFinished(false)
@@ -123,6 +125,8 @@ export function PracticeView() {
   const recordAnswer = (result: 'correct' | 'wrong') => {
     if (!current) return
     setAnswers((a) => ({ ...a, [current.id]: result }))
+    // 成套错题会话：作答回写记忆曲线（同日幂等，不重复推进 stage；不写今日批次统计）；自由组卷不回写
+    if (session?.enroll) applyPracticeResult(current.id, result === 'correct')
   }
 
   const next = React.useCallback(() => {
@@ -291,7 +295,7 @@ export function PracticeView() {
         {wrongQids.length > 0 && (
           <Card className="w-full max-w-lg bg-card/90 p-5">
             <p className="mb-3 font-mono text-xs font-semibold text-rose-600 dark:text-rose-400">
-              错题已自动加入错题本：
+              {session.enroll ? '以下错题已回写记忆曲线：' : '以下题目答错（自由练习，未回写错题本）：'}
             </p>
             <ul className="space-y-1.5">
               {wrongQids.slice(0, 6).map((qid) => {
@@ -345,6 +349,9 @@ export function PracticeView() {
         <div>
           <p className="font-mono text-xs text-primary">$ practice --run</p>
           <h1 className="text-lg font-bold">{session.title}</h1>
+          {session.note && (
+            <p className="mt-1 font-mono text-[11px] text-muted-foreground">{session.note}</p>
+          )}
         </div>
         <span className="font-mono text-sm text-muted-foreground tabular-nums">
           {idx + 1} / {session.qids.length}

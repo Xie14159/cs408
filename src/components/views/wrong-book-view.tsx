@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { BookX, Download, Eraser, RefreshCw, Save, Target, Upload } from 'lucide-react'
+import { BookX, Download, Eraser, ListChecks, RefreshCw, Save, Target, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { QuestionBody } from '@/components/question-body'
@@ -10,6 +10,9 @@ import { getQuestion, QUESTION_MAP } from '@/data'
 import { SUBJECTS, SUBJECT_ORDER } from '@/data/types'
 import type { SubjectCode } from '@/data/types'
 import { useProgress, useUI, isWrongEntry } from '@/lib/store'
+import { priorityOrder, dateKey, toDay } from '@/lib/ebbinghaus'
+import { selectBalancedPaper } from '@/lib/balanced-pack'
+import type { BalancedPack, PackMeta } from '@/lib/balanced-pack'
 import { buildWrongbookPayload, saveWrongbookToDisk } from '@/lib/wrongbook-export'
 import { cn } from '@/lib/utils'
 
@@ -17,6 +20,31 @@ import { cn } from '@/lib/utils'
 function qNum(qid: string): number {
   const n = Number(qid.split('-').pop())
   return Number.isFinite(n) ? n : 0
+}
+
+/** 配额说明：按科×题型列 actual/planned，池内不足格单独标注；未入选题一并提示 */
+function buildQuotaNote(bal: BalancedPack): string {
+  const parts = bal.plan
+    .filter((r) => r.planned > 0 || r.actual > 0)
+    .map(
+      (r) =>
+        `${SUBJECTS[r.subject].name}${r.type === 'application' ? '综合' : '单选'} ${r.actual}/${r.planned}`,
+    )
+  // unavailable = planned − quota：池里物理无题可选（非算法未选），才标注「池内不足」
+  const short = bal.plan.filter((r) => r.unavailable > 0)
+  const notes: string[] = parts
+  if (short.length > 0) {
+    notes.push(
+      short
+        .map(
+          (r) =>
+            `${SUBJECTS[r.subject].name}${r.type === 'application' ? '综合' : '单选'}池内不足（${r.actual}/${r.planned}）`,
+        )
+        .join('、'),
+    )
+  }
+  if (bal.skipped > 0) notes.push(`${bal.skipped} 道题元数据缺失或非法，未入选`)
+  return notes.filter(Boolean).join('；')
 }
 
 export function WrongBookView() {  const records = useProgress((s) => s.records)
@@ -49,6 +77,64 @@ export function WrongBookView() {  const records = useProgress((s) => s.records)
   // 每科默认只渲染前 8 道：错题上百时，一次性铺开会把主线程占满（实测 61 道 = 2630 个 DOM 节点）
   const [expanded, setExpanded] = React.useState<Record<string, boolean>>({})
   const PAGE = 8
+
+  /* ---------------- 错题拼卷：勾选成卷 / 逾期优先自动成套 ---------------- */
+  const [picked, setPicked] = React.useState<Set<string>>(new Set())
+  const [autoCount, setAutoCount] = React.useState(15)
+
+  /** 题库里真实存在的错题（缺题不进卷） */
+  const validQids = React.useMemo(
+    () => wrongQids.filter((qid) => QUESTION_MAP.has(qid)),
+    [wrongQids],
+  )
+
+  /** 题库元数据查不到的题不归类、不进卷（计入 skipped，由配额说明提示） */
+  const metaOf = React.useCallback(
+    (qid: string): PackMeta | undefined => {
+      const q = QUESTION_MAP.get(qid)
+      return q ? { subject: q.subject, type: q.type } : undefined
+    },
+    [],
+  )
+
+  /** 自动成套：有待巩固调度记录的按逾期优先排，无记录的历史错题排后补足；再按四科×题型配额切卷 */
+  const balanced = React.useMemo(() => {
+    const t = toDay(dateKey()) ?? 0
+    const scheduled = validQids.filter((qid) => sched[qid]?.active)
+    const rest = validQids.filter((qid) => !sched[qid])
+    const ordered = [...priorityOrder(sched, scheduled, t), ...rest]
+    return selectBalancedPaper(ordered, autoCount, metaOf)
+  }, [validQids, sched, autoCount, metaOf])
+
+  const autoQids = balanced.qids
+  const quotaNote = React.useMemo(() => buildQuotaNote(balanced), [balanced])
+
+  const togglePick = (qid: string) => {
+    setPicked((prev) => {
+      const next = new Set(prev)
+      if (next.has(qid)) next.delete(qid)
+      else next.add(qid)
+      return next
+    })
+  }
+
+  const pickedValid = React.useMemo(
+    () => [...picked].filter((qid) => validQids.includes(qid)),
+    [picked, validQids],
+  )
+
+  const startAutoPaper = () => {
+    if (autoQids.length === 0) return
+    startPractice({
+      qids: autoQids,
+      title: `错题成套 · 逾期优先 ${autoQids.length} 道`,
+      note: quotaNote,
+    })
+  }
+  const startPickedPaper = () => {
+    if (pickedValid.length === 0) return
+    startPractice({ qids: pickedValid, title: `错题拼卷 · 自选 ${pickedValid.length} 道` })
+  }
 
   // 真题套卷：按年份（= 那一套卷）分组，年份倒序，便于一年一年复盘
   // 组内按题号升序（q-2009-36 → 36），这样一年错题按 1、2、3… 顺序摆，重练顺序也一致
@@ -188,7 +274,12 @@ export function WrongBookView() {  const records = useProgress((s) => s.records)
         ) : (
           <div className="flex flex-col gap-3">
             {(expanded['year'] ? items : items.slice(0, PAGE)).map((qid) => (
-              <WrongItem key={qid} qid={qid} />
+              <WrongItem
+                key={qid}
+                qid={qid}
+                checked={picked.has(qid)}
+                onToggle={() => togglePick(qid)}
+              />
             ))}
           </div>
         )}
@@ -268,7 +359,50 @@ export function WrongBookView() {  const records = useProgress((s) => s.records)
             <RefreshCw className="h-4 w-4" />
             重练全部错题
           </Button>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {[10, 15, 20, 30].map((n) => (
+              <Button
+                key={n}
+                size="sm"
+                variant={autoCount === n ? 'default' : 'outline'}
+                className="h-7 px-2 font-mono text-xs"
+                onClick={() => setAutoCount(n)}
+              >
+                {n}
+              </Button>
+            ))}
+            <Button
+              size="sm"
+              variant={autoCount >= validQids.length ? 'default' : 'outline'}
+              className="h-7 px-2 font-mono text-xs"
+              onClick={() => setAutoCount(validQids.length)}
+            >
+              全部
+            </Button>
+          </div>
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={startAutoPaper}
+            disabled={autoQids.length === 0}
+            title="按逾期优先成套，并按四科×题型配额均分；某科/题型池内不足时少出并标注"
+          >
+            <Target className="h-4 w-4" />
+            成套重练（{autoQids.length}）
+          </Button>
+          <Button
+            className="gap-2 font-semibold"
+            onClick={startPickedPaper}
+            disabled={pickedValid.length === 0}
+            title="把下方勾选的错题组成一套卷"
+          >
+            <ListChecks className="h-4 w-4" />
+            自选成卷{pickedValid.length > 0 ? `（${pickedValid.length}）` : ''}
+          </Button>
         </div>
+        {autoQids.length > 0 && quotaNote && (
+          <p className="w-full font-mono text-[11px] text-muted-foreground">{quotaNote}</p>
+        )}
       </header>
 
       <div className="flex items-center gap-2" role="tablist" aria-label="错题分组方式">
@@ -306,7 +440,12 @@ export function WrongBookView() {  const records = useProgress((s) => s.records)
             </div>
             <div className="flex flex-col gap-3">
               {(expanded[code] ? items : items.slice(0, PAGE)).map((qid) => (
-                <WrongItem key={qid} qid={qid} />
+                <WrongItem
+                key={qid}
+                qid={qid}
+                checked={picked.has(qid)}
+                onToggle={() => togglePick(qid)}
+              />
               ))}
             </div>
             {items.length > PAGE && (
@@ -349,11 +488,20 @@ export function WrongBookView() {  const records = useProgress((s) => s.records)
   )
 }
 
-const WrongItem = React.memo(function WrongItem({ qid }: { qid: string }) {
+const WrongItem = React.memo(function WrongItem({
+  qid,
+  checked,
+  onToggle,
+}: {
+  qid: string
+  checked: boolean
+  onToggle: () => void
+}) {
   const q = getQuestion(qid)
   const rec = useProgress((s) => s.records[qid])
   const startPractice = useUI((s) => s.startPractice)
   const resolveWrongFromBook = useProgress((s) => s.resolveWrongFromBook)
+  const masterQuestion = useProgress((s) => s.masterQuestion)
   const [open, setOpen] = React.useState(false)
   const [removed, setRemoved] = React.useState(false)
   const [justSolved, setJustSolved] = React.useState(false)
@@ -366,6 +514,14 @@ const WrongItem = React.memo(function WrongItem({ qid }: { qid: string }) {
         <p className="mb-2 font-mono text-xs text-emerald-600">✓ 已做对，记忆曲线已推进</p>
       )}
       <div className="mb-2 flex flex-wrap items-center gap-1.5">
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={onToggle}
+          aria-label="选入错题拼卷"
+          title="选入错题拼卷"
+          className="h-4 w-4 accent-primary"
+        />
         <span className="font-mono text-xs text-muted-foreground/70">{q.id}</span>
         <YearBadge year={q.year} origin={q.origin} />
         <TopicBadge topic={q.topic} />
@@ -387,6 +543,10 @@ const WrongItem = React.memo(function WrongItem({ qid }: { qid: string }) {
                 resolveWrongFromBook(submitQid, correct)
                 if (correct) setJustSolved(true)
               }}
+              onMastered={(submitQid) => {
+                masterQuestion(submitQid)
+                setRemoved(true)
+              }}
             />
           </div>
         ) : (
@@ -397,6 +557,10 @@ const WrongItem = React.memo(function WrongItem({ qid }: { qid: string }) {
             onSubmit={(submitQid, correct) => {
               resolveWrongFromBook(submitQid, correct)
               if (correct) setJustSolved(true)
+            }}
+            onMastered={(submitQid) => {
+              masterQuestion(submitQid)
+              setRemoved(true)
             }}
           />
         )}
@@ -423,8 +587,8 @@ const WrongItem = React.memo(function WrongItem({ qid }: { qid: string }) {
           variant="ghost"
           className="h-7 gap-1 font-mono text-xs text-muted-foreground"
           onClick={() => {
-            // 标记已掌握：推进记忆曲线 + 移出错题本
-            resolveWrongFromBook(qid, true)
+            // 标记已掌握：记为 mastered 并归档，直接移出错题本与复习池
+            masterQuestion(qid)
             setRemoved(true)
           }}
           title="手动移出错题本"
