@@ -308,11 +308,7 @@ function PackItem({ qid, index, today }: { qid: string; index: number; today: st
         q={q}
         mode={mode}
         reviewSelected={picked}
-        onSubmit={
-          mode === 'practice'
-            ? (id, correct, letter) => recordPackAnswer(today, id, correct, letter)
-            : undefined
-        }
+        onSubmit={(id, correct, letter) => recordPackAnswer(today, id, correct, letter)}
       />
 
       {q.type === 'application' && (

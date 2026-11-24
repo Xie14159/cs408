@@ -573,7 +573,7 @@ export const useProgress = create<ProgressState>()(
         set((s) => {
           const today = todayKey()
           const merged = new Set([...(s.assignedDaily[today] ?? []), ...qids])
-          return { assignedDaily: { [today]: Array.from(merged) } }
+          return { assignedDaily: { ...s.assignedDaily, [today]: Array.from(merged) } }
         }),
       postponeDaily: (qids, days = 1) =>
         set((s) => {
@@ -589,16 +589,24 @@ export const useProgress = create<ProgressState>()(
         set((s) => {
           const today = todayKey()
           const list = s.assignedDaily[today] ?? []
+          const processedToday = new Set([
+            ...(s.processedDaily[today] ?? []),
+            ...Object.keys(s.dailyDone[today] ?? {}),
+          ])
           const next = { ...s.sched }
           for (const qid of list) {
+            // 已作答的题保留它原本的复习安排；只把还没处理的题顺延到明天
+            if (processedToday.has(qid)) continue
             const rec = next[qid]
             if (rec?.active) next[qid] = applyPostpone(rec, today, 1)
           }
           return {
             sched: next,
             // 空数组而非删 key：留着表示「今天已经安排过、被用户清空了」，避免自动重选
-            assignedDaily: { [today]: [] },
-            processedDaily: { [today]: [] },
+            assignedDaily: { ...s.assignedDaily, [today]: [] },
+            processedDaily: { ...s.processedDaily, [today]: [] },
+            // 判定也一并清掉，否则重开后旧的对错标签还会锁住卡片
+            dailyDone: { ...s.dailyDone, [today]: {} },
           }
         }),
 

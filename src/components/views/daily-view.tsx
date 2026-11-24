@@ -114,7 +114,16 @@ export function DailyView() {
     if (picked.length > 0) assignDaily(picked)
   }, [pack, assigned, sched, today, topicOf, assignDaily])
 
-  const list = React.useMemo(() => assigned ?? [], [assigned])
+  // 已归档/已掌握但还留在今日 assigned 里的题不再展示：否则点「标记已掌握」后刷新，
+  // 这张卡会因为 processedDaily 没记而重新出现，还被算进未完成。
+  // 例外：今天已经处理过的题保留（可能是刚答对触发了归档，得让用户看到判定和解析）。
+  const list = React.useMemo(
+    () =>
+      (assigned ?? []).filter(
+        (qid) => sched[qid] && (sched[qid].active !== false || processed.has(qid)),
+      ),
+    [assigned, sched, processed],
+  )
   const pending = list.filter((qid) => !processed.has(qid))
 
   /**
@@ -140,14 +149,17 @@ export function DailyView() {
   const otherVisible = showOther ? otherPool.slice(0, otherLimit) : []
 
   /** 今天已处理（含「看答案」）；进度条把看答案单独标出来，避免显得全做完了 */
-  const doneCount = processed.size
+  const doneCount = React.useMemo(
+    () => list.filter((qid) => processed.has(qid)).length,
+    [list, processed],
+  )
   const peekCount = React.useMemo(() => {
     let n = 0
-    for (const qid of processed) {
-      if (dailyDone[today]?.[qid] === 'peek') n += 1
+    for (const qid of list) {
+      if (processed.has(qid) && dailyDone[today]?.[qid] === 'peek') n += 1
     }
     return n
-  }, [processed, dailyDone, today])
+  }, [list, processed, dailyDone, today])
   const total = list.length
   const pct = total > 0 ? Math.min(100, Math.round((doneCount / total) * 100)) : 0
 
@@ -451,7 +463,7 @@ export function DailyView() {
               <Check className="h-7 w-7 text-emerald-500" />
               <p className="text-base font-semibold">今天这批做完了</p>
               <p className="text-sm text-muted-foreground">
-                回写了 {processed.size} 道。答过的题留在下面，可以看答案和解析；想加练就点右上角「再开 {DAILY_TARGET} 道」。
+                回写了 {doneCount} 道。答过的题留在下面，可以看答案和解析；想加练就点右上角「再开 {DAILY_TARGET} 道」。
               </p>
             </Card>
           )}
