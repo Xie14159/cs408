@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { createPortal } from 'react-dom'
 import { Check, Eye, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { CodeBlock } from '@/components/code-block'
@@ -369,34 +370,51 @@ export function QuestionBody({
         <QuestionFavNote qid={q.id} />
       )}
 
-      {/* 原题配图灯箱：点遮罩、点右上角 ×、按 Esc 都能关掉 */}
-      {zoomed && figureFor(q.id) && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="原题配图"
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4"
-          onClick={() => setZoomed(false)}
-        >
-          <button
-            type="button"
-            aria-label="关闭"
-            onClick={(e) => {
-              e.stopPropagation()
-              setZoomed(false)
-            }}
-            className="absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-full bg-white/95 text-black shadow-lg transition hover:bg-white"
+      {/* 原题配图灯箱：portal 到 body，避免被卡片的 transform/contain 约束成小框 */}
+      {zoomed &&
+        figureFor(q.id) &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="原题配图"
+            className="fixed inset-0 z-[100] flex flex-col bg-black/85"
+            onClick={() => setZoomed(false)}
           >
-            <X className="h-6 w-6" />
-          </button>
-          <img
-            src={figureFor(q.id) as string}
-            alt="原题配图"
-            onClick={(e) => e.stopPropagation()}
-            className="max-h-[92vh] max-w-[95vw] cursor-zoom-out rounded-lg bg-white object-contain shadow-2xl"
-          />
-        </div>
-      )}
+            {/* 顶部工具条：关闭按钮不压图片，也不随图片滚动 */}
+            <div className="flex h-14 shrink-0 items-center justify-between px-4">
+              <span className="font-mono text-xs text-white/70">{q.id} · 原题配图</span>
+              <div className="flex items-center gap-3">
+                <span className="hidden text-xs text-white/50 sm:inline">Esc 或点背景关闭</span>
+                <button
+                  type="button"
+                  aria-label="关闭"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setZoomed(false)
+                  }}
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-black shadow-lg transition hover:bg-white/90"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+            {/* 图片区：可滚动，图按可视区域等比缩放 */}
+            <div className="min-h-0 flex-1 overflow-auto p-4 pt-0">
+              <div className="grid min-h-full place-items-center">
+                <img
+                  src={figureFor(q.id) as string}
+                  alt="原题配图"
+                  onClick={(e) => e.stopPropagation()}
+                  className="max-w-full rounded bg-white object-contain shadow-2xl"
+                  style={{ maxHeight: 'calc(100vh - 7rem)' }}
+                />
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }
