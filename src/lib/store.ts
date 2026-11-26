@@ -257,8 +257,8 @@ export const useProgress = create<ProgressState>()(
           }
         }),
       /**
-       * 一日题包作答：复用 submitAnswer 的写入语义（records 累加、做错进池），
-       * 另外记一份 packDone 供题包页显示与幂等；不影响 assignedDaily / processedDaily。
+       * 一日题包作答：用 applyPracticeResult 回写 records + 记忆曲线（做对也推进 stage，
+       * 做错照常进池），再单独累计当天答题数；不影响 assignedDaily / processedDaily。
        * 必须保持同步：幂等判断依赖「本次调用返回时 packDone 已写入」。
        */
       recordPackAnswer: (date, qid, correct, letter) => {
@@ -266,16 +266,18 @@ export const useProgress = create<ProgressState>()(
         // 幂等：同一天同题只记一次；若上次写入中断留下半状态，也不覆盖原始快照
         if (s0.packDone[date]?.[qid]) return
         if (s0.packPrev[date]?.[qid]) return
-        // 快照旧对象即可：submitAnswer / bumpSched 都是不可变更新，不会原地改
+        // 快照旧对象即可：applyPracticeResult / bumpSched 都是不可变更新，不会原地改
         const snap = {
           record: s0.records[qid],
           sched: s0.sched[qid],
           dailyBefore: s0.daily[date] ?? 0,
         }
-        get().submitAnswer(qid, correct ? 'correct' : 'wrong')
-        // 记实际增量而不是硬减 1，撤销与 submitAnswer 的计数规则解耦
-        const dailyDelta = (get().daily[date] ?? 0) - snap.dailyBefore
+        get().applyPracticeResult(qid, correct)
+        // applyPracticeResult 刻意不写 daily（避免污染拼卷会话），题包是今日主批次，单独 +1
+        const dailyNext = (get().daily[date] ?? 0) + 1
+        const dailyDelta = dailyNext - snap.dailyBefore
         set((s) => ({
+          daily: { ...s.daily, [date]: dailyNext },
           packPrev: {
             ...s.packPrev,
             [date]: { ...(s.packPrev[date] ?? {}), [qid]: { ...snap, dailyDelta } },

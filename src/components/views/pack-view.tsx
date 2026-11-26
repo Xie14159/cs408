@@ -311,7 +311,7 @@ function PackItem({ qid, index, today }: { qid: string; index: number; today: st
         onSubmit={(id, correct, letter) => recordPackAnswer(today, id, correct, letter)}
       />
 
-      {q.type === 'application' && (
+      {q.type === 'application' && qid === 'q-2015-43' && (
         <p className="mt-2 font-mono text-[11px] text-muted-foreground">
           本册只做 (3)–(6) 四小问；对错按整题记录。
         </p>
