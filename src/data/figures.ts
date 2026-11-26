@@ -37,6 +37,35 @@ export const FIGURES: Record<string, string> = {
   'q-2024-47': '/figures/q-2024-47.png',
   // 2025 卷本地缺失，图由用户截取
   'q-2025-46': '/figures/q-2025-46.png',
+  // 2009–2022 补图（逐页定位后裁切）
+  'q-2009-44': '/figures/q-2009-44.png',
+  'q-2009-46': '/figures/q-2009-46.png',
+  'q-2009-47': '/figures/q-2009-47.png',
+  'q-2010-45': '/figures/q-2010-45.png',
+  'q-2010-46': '/figures/q-2010-46.png',
+  'q-2011-44': '/figures/q-2011-44.png',
+  'q-2011-47': '/figures/q-2011-47.png',
+  'q-2012-42': '/figures/q-2012-42.png',
+  'q-2012-44': '/figures/q-2012-44.png',
+  // 2013-44 含两页内容（指令格式/机器码表 + 数据通路图），已拼成一张
+  'q-2013-44': '/figures/q-2013-44.png',
+  'q-2013-46': '/figures/q-2013-46.png',
+  'q-2013-47': '/figures/q-2013-47.png',
+  'q-2017-44': '/figures/q-2017-44.png',
+  'q-2017-47': '/figures/q-2017-47.png',
+  'q-2018-42': '/figures/q-2018-42.png',
+  'q-2018-44': '/figures/q-2018-44.png',
+  // 2018 第 45 题「请根据题 44 图…」，与 44 共用同一张图
+  'q-2018-45': '/figures/q-2018-44.png',
+  'q-2018-47': '/figures/q-2018-47.png',
+  'q-2019-47': '/figures/q-2019-47.png',
+  'q-2020-47': '/figures/q-2020-47.png',
+  'q-2021-45': '/figures/q-2021-45.png',
+  'q-2021-47': '/figures/q-2021-47.png',
+  'q-2022-41': '/figures/q-2022-41.png',
+  'q-2022-43': '/figures/q-2022-43.png',
+  'q-2022-46': '/figures/q-2022-46.png',
+  'q-2022-47': '/figures/q-2022-47.png',
 }
 
 export function figureFor(qid: string): string | null {
