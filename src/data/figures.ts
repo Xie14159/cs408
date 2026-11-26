@@ -13,6 +13,16 @@ export const FIGURES: Record<string, string> = {
   'q-2015-43': '/figures/q-2015-43.png',
   'q-2015-44': '/figures/q-2015-44.png',
   'q-2015-47': '/figures/q-2015-47.png',
+  // 2016 第 33~41 题共用一张网络拓扑（原卷「题 33~41 图」）
+  'q-2016-33': '/figures/q-2016-33.png',
+  'q-2016-34': '/figures/q-2016-33.png',
+  'q-2016-35': '/figures/q-2016-33.png',
+  'q-2016-36': '/figures/q-2016-33.png',
+  'q-2016-37': '/figures/q-2016-33.png',
+  'q-2016-38': '/figures/q-2016-33.png',
+  'q-2016-39': '/figures/q-2016-33.png',
+  'q-2016-40': '/figures/q-2016-33.png',
+  'q-2016-41': '/figures/q-2016-33.png',
   'q-2016-45': '/figures/q-2016-45.png',
   'q-2016-47': '/figures/q-2016-47.png',
   // 2023 卷本地只有解析版（无原图），此图由用户提供截图后裁切
