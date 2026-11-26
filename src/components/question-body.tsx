@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { CodeBlock } from '@/components/code-block'
 import { RichText } from '@/components/rich-text'
 import { letterOf, TYPE_LABEL } from '@/data/types'
+import { figureFor } from '@/data/figures'
 import type { Question } from '@/data/types'
 import { VisualPlayer } from '@/components/visuals/visual-player'
 import { SolutionTemplate } from '@/components/solution-template'
@@ -89,11 +90,26 @@ export function QuestionBody({
       <RichText text={q.question} className="text-[15px] font-medium" />
       {q.code && <CodeBlock code={q.code.text} lang={q.code.lang} />}
 
-      {missingFigure && (
+      {/* 原卷配图：题库文字里只有"如图"，图从原卷裁下来放在 public/figures/ */}
+      {figureFor(q.id) ? (
+        <figure className="overflow-hidden rounded-lg border bg-white p-2">
+          <a href={figureFor(q.id) as string} target="_blank" rel="noreferrer">
+            <img
+              src={figureFor(q.id) as string}
+              alt="原题配图"
+              loading="lazy"
+              className="mx-auto block max-h-[70vh] w-auto max-w-full"
+            />
+          </a>
+          <figcaption className="mt-1 text-center text-[11px] text-muted-foreground">
+            原题配图（点击可看大图）
+          </figcaption>
+        </figure>
+      ) : missingFigure ? (
         <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-700 dark:text-amber-300">
           原卷配图未随题库收录，请对照纸质真题查看图形；本题文字条件完整，可直接作答。
         </div>
-      )}
+      ) : null}
 
       {/* 单选题选项 */}
       {q.type === 'single' && q.options && (
