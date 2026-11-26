@@ -26,7 +26,14 @@ export const FIGURES: Record<string, string> = {
   'q-2016-45': '/figures/q-2016-45.png',
   'q-2016-47': '/figures/q-2016-47.png',
   // 2023 卷本地只有解析版（无原图），此图由用户提供截图后裁切
+  'q-2023-41': '/figures/q-2023-41.png',
+  'q-2023-45': '/figures/q-2023-45.png',
   'q-2023-47': '/figures/q-2023-47.png',
+  // 2024 卷是带水印扫描版，图由用户截取
+  'q-2024-44': '/figures/q-2024-44.png',
+  'q-2024-47': '/figures/q-2024-47.png',
+  // 2025 卷本地缺失，图由用户截取
+  'q-2025-46': '/figures/q-2025-46.png',
 }
 
 export function figureFor(qid: string): string | null {
