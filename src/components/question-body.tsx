@@ -56,6 +56,20 @@ export function QuestionBody({
   }, [q.id])
 
   const practiceLike = mode === 'practice' || mode === 'quiz'
+  const [zoomed, setZoomed] = React.useState(false)
+  React.useEffect(() => {
+    if (!zoomed) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setZoomed(false)
+    }
+    window.addEventListener('keydown', onKey)
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prev
+    }
+  }, [zoomed])
   const answered = mode === 'review' ? true : mode === 'browse' ? false : selected !== null || externalSelected != null
   const current = mode === 'review' ? reviewSelected ?? null : externalSelected ?? selected
 
@@ -93,16 +107,21 @@ export function QuestionBody({
       {/* 原卷配图：题库文字里只有"如图"，图从原卷裁下来放在 public/figures/ */}
       {figureFor(q.id) ? (
         <figure className="overflow-hidden rounded-lg border bg-white p-2">
-          <a href={figureFor(q.id) as string} target="_blank" rel="noreferrer">
+          <button
+            type="button"
+            onClick={() => setZoomed(true)}
+            className="block w-full cursor-zoom-in"
+            aria-label="放大查看原题配图"
+          >
             <img
               src={figureFor(q.id) as string}
               alt="原题配图"
               loading="lazy"
               className="mx-auto block max-h-[70vh] w-auto max-w-full"
             />
-          </a>
+          </button>
           <figcaption className="mt-1 text-center text-[11px] text-muted-foreground">
-            原题配图（点击可看大图）
+            原题配图（点击放大，Esc 或点右上角关闭）
           </figcaption>
         </figure>
       ) : missingFigure ? (
@@ -351,6 +370,35 @@ export function QuestionBody({
       {/* 收藏 + 备注（作答后 / 复盘模式 / 综合题 / 曾做过均展示） */}
       {(answered || mode === 'review' || q.type === 'application' || hasRecord) && (
         <QuestionFavNote qid={q.id} />
+      )}
+
+      {/* 原题配图灯箱：点遮罩、点右上角 ×、按 Esc 都能关掉 */}
+      {zoomed && figureFor(q.id) && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="原题配图"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setZoomed(false)}
+        >
+          <button
+            type="button"
+            aria-label="关闭"
+            onClick={(e) => {
+              e.stopPropagation()
+              setZoomed(false)
+            }}
+            className="absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-full bg-white/95 text-black shadow-lg transition hover:bg-white"
+          >
+            <X className="h-6 w-6" />
+          </button>
+          <img
+            src={figureFor(q.id) as string}
+            alt="原题配图"
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-[92vh] max-w-[95vw] cursor-zoom-out rounded-lg bg-white object-contain shadow-2xl"
+          />
+        </div>
       )}
     </div>
   )
