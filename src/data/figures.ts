@@ -11,6 +11,7 @@ export const FIGURES: Record<string, string> = {
   'q-2014-42': '/figures/q-2014-42.png',
   'q-2015-42': '/figures/q-2015-42.png',
   'q-2015-43': '/figures/q-2015-43.png',
+  'q-2015-44': '/figures/q-2015-44.png',
   'q-2015-47': '/figures/q-2015-47.png',
   'q-2016-45': '/figures/q-2016-45.png',
   'q-2016-47': '/figures/q-2016-47.png',
