@@ -14,6 +14,8 @@ export const FIGURES: Record<string, string> = {
   'q-2015-47': '/figures/q-2015-47.png',
   'q-2016-45': '/figures/q-2016-45.png',
   'q-2016-47': '/figures/q-2016-47.png',
+  // 2023 卷本地只有解析版（无原图），此图由用户提供截图后裁切
+  'q-2023-47': '/figures/q-2023-47.png',
 }
 
 export function figureFor(qid: string): string | null {
