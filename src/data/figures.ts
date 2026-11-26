@@ -9,6 +9,9 @@
  */
 export const FIGURES: Record<string, string> = {
   'q-2014-42': '/figures/q-2014-42.png',
+  // 2014 第 43 题的“路由表”是空表（要考生填），它真正依赖的是题 42 图的网络拓扑
+  'q-2014-43': '/figures/q-2014-42.png',
+  'q-2014-44': '/figures/q-2014-44.png',
   'q-2015-42': '/figures/q-2015-42.png',
   'q-2015-43': '/figures/q-2015-43.png',
   'q-2015-44': '/figures/q-2015-44.png',
