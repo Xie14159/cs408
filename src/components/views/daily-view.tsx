@@ -9,6 +9,7 @@ import {
   ChevronUp,
   Download,
   Eraser,
+  FileDown,
   Moon,
   Plus,
   RefreshCw,
@@ -251,6 +252,68 @@ export function DailyView() {
     })
   }
 
+  /* --------------------------- 到期真题做题本 --------------------------- */
+  // 只导「到期/逾期」的题：本批里的补位新题不算欠账，不塞进手写做题本。
+  const [pdfBusy, setPdfBusy] = React.useState(false)
+  const dueQids = React.useMemo(() => {
+    const t = toDay(today) ?? 0
+    const seen = new Set<string>()
+    const out: string[] = []
+    for (const qid of list) {
+      const rec = sched[qid]
+      if (!rec || dueDay(rec, t) > t) continue
+      if (seen.has(qid)) continue
+      seen.add(qid)
+      out.push(qid)
+    }
+    for (const qid of otherPool) {
+      if (seen.has(qid)) continue
+      seen.add(qid)
+      out.push(qid)
+    }
+    return out
+  }, [list, otherPool, sched, today])
+
+  const exportWorksheet = React.useCallback(async () => {
+    if (dueQids.length === 0) {
+      toast({ title: '今天没有到期题', description: '补位的新题不进做题本，先把欠的到期题清掉' })
+      return
+    }
+    setPdfBusy(true)
+    try {
+      const res = await fetch('/api/worksheet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ qids: dueQids, date: today }),
+      })
+      if (!res.ok) {
+        let msg = `HTTP ${res.status}`
+        try {
+          const j = (await res.json()) as { error?: string }
+          msg = j.error || msg
+        } catch {}
+        throw new Error(msg)
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `408做题本_${today}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      setTimeout(() => URL.revokeObjectURL(url), 30_000)
+      toast({
+        title: '做题本已生成',
+        description: `${dueQids.length} 道到期题 · 已下载，副本在 exports 目录`,
+      })
+    } catch (e) {
+      toast({ title: '生成失败', description: e instanceof Error ? e.message : String(e) })
+    } finally {
+      setPdfBusy(false)
+    }
+  }, [dueQids, today, toast])
+
   /* --------------------------- 今日题包（仅当天） --------------------------- */
   // 放在所有 hook 之后、正常列表分支之前：pack 命中就整页替换，明天 getPackFor 返回 null 自动恢复
   if (pack) {
@@ -315,6 +378,16 @@ export function DailyView() {
                 导入已有错题（{importable} 道）
               </Button>
             )}
+            <Button
+              variant="outline"
+              className="gap-2 font-mono text-xs"
+              onClick={exportWorksheet}
+              disabled={pdfBusy || dueQids.length === 0}
+              title="把今天到期的题排成 A4 做题本（无答案，含未入批的到期/逾期题）"
+            >
+              <FileDown className="h-4 w-4" />
+              {pdfBusy ? '生成中…' : `做题本 PDF（${dueQids.length}）`}
+            </Button>
             <Button variant="outline" className="gap-2 font-mono text-xs" onClick={startMore}>
               <Plus className="h-4 w-4" />
               再开一组（最多 {DAILY_TARGET} 道）
